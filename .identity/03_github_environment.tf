@@ -36,6 +36,7 @@ locals {
     "CDN_ENDPOINT" : "pagopa-${var.env_short}-nodo-observability-cdn-endpoint", # pagopa-<ENV>-nodo-observability-cdn-endpoint
     "CDN_PROFILE" : "pagopa-${var.env_short}-nodo-observability-cdn-profile", # pagopa-<ENV>-nodo-observability-cdn-profile
 
+    "API_BASE_URL": var.env_short != "p" ? "https://api.${var.env}.platform.pagopa.it/technical-support/ndp/api/v1": "https://api.platform.pagopa.it/technical-support/ndp/api/v1",
 
     # "CLUSTER_NAME" : local.aks_cluster.name,
     # "CLUSTER_RESOURCE_GROUP" : local.aks_cluster.resource_group_name,

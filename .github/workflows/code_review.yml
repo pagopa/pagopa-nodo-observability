@@ -34,16 +34,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set Node.js 16
-        uses: actions/setup-node@1a4442cacd436585916779262731d5b162bc6ec7 # v3
+      - name: Set Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 16.14.0
+          node-version: 24
 
       - name: Build
         run: |
-          yarn install
-          yarn generate
-          yarn build
+          npm ci
+          npm run build
 
   static_analysis:
     name: Static Analysis
@@ -53,15 +52,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set Node.js 16
-        uses: actions/setup-node@1a4442cacd436585916779262731d5b162bc6ec7 # v3
+      - name: Set Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 16.14.0
+          node-version: 24
 
       - name: Lint
         run: |
-          yarn install
-          yarn lint
+          npm ci
+          npm run lint
 
   test:
     name: Unit Test & Sonar
@@ -71,19 +70,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set Node.js 16
-        uses: actions/setup-node@1a4442cacd436585916779262731d5b162bc6ec7 # v3
+      - name: Set Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 16.14.0
+          node-version: 24
 
       - name: Unit Tests
         run: |
-          yarn install
-          yarn generate
-          yarn test:coverage --watchAll=false
+          npm ci
+          npm test -- --coverage --coverage-reporters lcov
+          npm run test:deployment-config
+          npm run test:mock
+          npm run contract:validate
 
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@master
+        with:
+          args: -Dsonar.javascript.lcov.reportPaths=coverage/observability/lcov.info
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
