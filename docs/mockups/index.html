@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard · Osservabilità pagamenti</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/app.js"></script>
+</head>
+<body data-page="dash">
+<main class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>Monitoraggio pagamenti</h1>
+      <p class="lead">Fotografia aggiornata del sistema. Pagamenti logici e tentativi sono conteggiati separatamente.</p>
+    </div>
+    <div class="chips" id="fresh"></div>
+  </div>
+
+  <!-- filtri -->
+  <div class="toolbar" id="filters">
+    <label class="field"><span>Intervallo</span>
+      <select id="f-range"><option>Ultime 24 ore</option><option>Ultimi 7 giorni</option><option>Ultimi 60 giorni</option></select></label>
+    <label class="field"><span>Entità dello stato</span>
+      <select id="f-entity"><option value="logical">Pagamento logico</option><option value="attempt">Tentativo</option></select></label>
+    <label class="field"><span id="state-filter-label">Stato pagamento</span>
+      <select id="f-stato"><option value="">Tutti</option></select></label>
+    <label class="field"><span>serviceIdentifier</span>
+      <select id="f-service"><option value="">Tutti</option><option>NODO_V2</option><option>NMU</option></select></label>
+    <label class="field"><span>PSP</span>
+      <select id="f-psp"><option value="">Tutti</option><option>ABI18164</option><option>ABI03069</option><option>ABI05034</option><option>ABI36081</option></select></label>
+    <label class="field"><span>Canale</span>
+      <select id="f-canale"><option value="">Tutti</option><option>02654890025_01</option><option>97735020584_05</option><option>06789879_01</option></select></label>
+    <button class="linkbtn filter-reset" id="f-reset">Reimposta filtri</button>
+  </div>
+  <div id="f-note" class="filter-note is-hidden">
+    <div class="note"><i data-i="info"></i><div><strong>Combinazione non coperta dai conteggi aggregati.</strong> Con PSP e canale insieme i conteggi non sono disponibili: viene mostrata solo la lista paginata dei tentativi.
+      <a href="02-pagamenti.html?entita=tentativo&psp=ABI03069&canale=97735020584_05"><strong>Apri la lista dei tentativi →</strong></a></div></div>
+  </div>
+  <div id="semantics"></div>
+  <p class="small muted mode-help">Anteprima: conteggi e interazioni sintetici, non misure reali. Il colore non certifica l’esito finanziario o applicativo.</p>
+
+  <div id="agg">
+  <!-- KPI -->
+  <div class="kpis" id="kpis"></div>
+
+  <!-- stati -->
+  <section class="section">
+    <div class="sh"><div><h2>Distribuzione per stato</h2><p class="sub">Selezionando uno stato si apre la lista della stessa entità: posizioni o tentativi, senza mescolare i conteggi.</p></div></div>
+    <div class="cols">
+      <div>
+        <h3>Pagamenti logici</h3>
+        <p class="sub small muted mb-10">Stato della posizione (PA + NAV)</p>
+        <div class="rows" id="rows-log"></div>
+      </div>
+      <div>
+        <h3>Tentativi</h3>
+        <p class="sub small muted mb-10">Stato di ciascun <span class="mono">paymentToken</span> · in ambra i non risolti</p>
+        <div class="rows" id="rows-att"></div>
+        <button class="linkbtn mt-12" id="more-att">Mostra tutti i 18 stati</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- psp / canale -->
+  <section class="section">
+    <div class="sh">
+      <div><h2>Dove si concentrano i casi non risolti</h2><p class="sub">Tentativi per stato ripartiti per PSP o canale. Il pagamento logico non ha PSP né canale.</p></div>
+      <div class="seg" id="dim-seg"><button class="on" data-d="psp">Per PSP</button><button data-d="canale">Per canale</button></div>
+    </div>
+    <div class="scroll"><table class="tbl" id="matrix"></table></div>
+    <p class="xs muted mt-10">I valori non ancora noti sono conteggiati sotto «Non disponibile» e si spostano quando arriva l'evento che li acquisisce.</p>
+  </section>
+
+  <!-- andamento -->
+  <section class="section">
+    <div class="sh">
+      <div><h2>Andamento dei passaggi di stato</h2><p class="sub">Passaggi per ora, basati su <span class="mono">transitionAt</span>. I passaggi inferiti hanno un'ora stimata e sono tratteggiati.</p></div>
+    </div>
+    <div class="cols-3-2">
+      <div>
+        <div id="trend"></div>
+        <div class="legend"><span><i class="swatch paying"></i>Da evento (sorgente)</span><span><i class="swatch inferred-source"></i>Inferito (ora stimata)</span></div>
+      </div>
+      <div>
+        <h3>Durata mediana tra passaggi</h3>
+        <p class="sub small muted mb-6">Solo passaggi da evento sorgente. Esclusi inferiti e anomalie.</p>
+        <table class="tbl">
+          <thead><tr><th>Passaggio</th><th class="num">Mediana</th><th class="num">p95</th></tr></thead>
+          <tbody>
+            <tr><td class="mono small">PAYING → PAYMENT_RESERVED</td><td class="num">41 s</td><td class="num">4 min 12 s</td></tr>
+            <tr><td class="mono small">PAYMENT_RESERVED → PAYMENT_SENT</td><td class="num">0,4 s</td><td class="num">1,1 s</td></tr>
+            <tr><td class="mono small">PAYMENT_SENT → PAYMENT_ACCEPTED</td><td class="num">1,8 s</td><td class="num">9 s</td></tr>
+            <tr><td class="mono small">PAYMENT_SENT → PAYMENT_UNKNOWN</td><td class="num">30,1 s</td><td class="num">30,4 s</td></tr>
+            <tr><td class="mono small">PAYMENT_ACCEPTED → PAID</td><td class="num">52 s</td><td class="num">6 min 3 s</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- enti -->
+  <section class="section">
+    <div class="sh">
+      <div><h2>Traffico per ente creditore</h2><p class="sub">Tentativi avviati nell'intervallo selezionato, attribuiti a <span class="mono">attemptStartedAt</span>.</p></div>
+      <a class="linkbtn" href="04-enti-creditori.html">Tutti gli enti creditori <i data-i="chevron"></i></a>
+    </div>
+    <div class="scroll"><table class="tbl" id="enti-top"></table></div>
+  </section>
+  </div>
+
+  <!-- ingestione + anomalie: indipendenti dai filtri -->
+  <section class="section">
+    <div class="sh">
+      <div><h2>Acquisizione e freschezza</h2><p class="sub">Metadati tecnici di acquisizione dal topic Event Hubs, non dati di business.</p></div>
+      <a class="linkbtn" href="02-pagamenti.html?anomalia=1">Transizioni con data-ora mancante: <b id="anom">37</b> <i data-i="chevron"></i></a>
+    </div>
+    <div class="scroll"><table class="tbl" id="parts"></table></div>
+    <div class="legend mt-12">
+      <span>Outbox non inoltrate: <b class="text-strong">0</b></span>
+      <span>Errori publisher (24 h): <b class="text-strong">0</b></span>
+      <span>Lacune di acquisizione rilevate: <b class="text-strong">nessuna</b></span>
+    </div>
+  </section>
+
+</main>
+
+<script>
+const { $, $$, fmtN, badge, icon, T, hydrateIcons, hydrateTimes, stackedBars, spark, stack, rnd, fmt } = UI;
+
+const LOG = [['INSERTED',41230],['PAYING',18764],['PAID',142915],['NOTICE_STORED',3108],['NOTIFIED',2112580]];
+const ATT = [['PAYING',9412],['PAYMENT_RESERVED',1204],['PAYMENT_SENT',861],['PAYMENT_ACCEPTED',3907],['PAYMENT_UNKNOWN',287],['PAYMENT_SEND_ERROR',96],['PAYMENT_REFUSED',412],['PAID',148220],['CANCELLED',389774],['NOTIFIED',2104870],
+  ['PAYING_RPT',236],['PAID_NORPT',58],['NOTICE_GENERATED',1032],['NOTICE_STORED',3190],['NOTICE_SENT',2440],['CANCELLED_NORPT',33],['FAILED',5612],['FAILED_NORPT',21]];
+const COLS = ['PAYING','PAYMENT_SENT','PAYMENT_ACCEPTED','PAYMENT_UNKNOWN','PAYMENT_SEND_ERROR','PAYMENT_REFUSED','PAID','CANCELLED'];
+const PSP = [['ABI03069',[820,212,640,121,38,61,22140,61200]],['ABI18164',[1930,280,1120,64,21,88,48300,121400]],['ABI05034',[2410,160,880,48,12,102,31200,80100]],['ABI36081',[1220,110,610,31,9,74,20100,52600]],['ABI07601',[990,64,420,14,11,49,15300,40800]],['Non disponibile',[2060,35,237,9,5,38,11180,33674]]];
+const CAN = [['97735020584_05',[1500,310,980,150,44,70,30100,75000]],['02654890025_01',[2870,320,1650,82,29,160,61200,160800]],['06789879_01',[2400,150,910,40,13,110,36900,101300]],['Non disponibile',[2640,81,367,15,10,72,19620,52674]]];
+const ENTI = [['80087670016',412880,[38,41,52,60,58,66,71,64],93,'A'],['00348170101',301440,[30,33,35,41,39,44,47,45],41,'B'],['01199250158',255310,[28,26,31,34,36,35,33,38],22,'C'],['80012000826',141920,[12,14,15,15,17,18,16,19],64,'D'],['02438750586',98760,[9,9,10,12,11,12,13,14],7,'E']];
+let factor = 1, dim = 'psp', showAll = false;
+
+function sumRows(a){ return a.reduce((s,r)=>s+r[1],0); }
+function renderRows(){
+  const f = v => Math.round(v*factor);
+  const lm = Math.max(...LOG.slice(0,4).map(r=>f(r[1])));
+  $('#rows-log').innerHTML = LOG.map(([s,n])=>`<a class="row" href="02-pagamenti.html?entita=pagamento&stato=${s}">
+    <span class="nm">${badge(s, '', 'logical')}</span><span class="bar"><i data-bar-width="${f(n)/Math.max(...LOG.map(r=>f(r[1])))*100}"></i></span>
+    <span class="ct" data-k="log-${s}">${fmtN(f(n))}</span>${icon('chevron','go')}</a>`).join('');
+  UI.hydrateBars($('#rows-log'));
+  const rows = showAll ? ATT : ATT.slice(0,10), mx = Math.max(...ATT.map(r=>f(r[1])));
+  $('#rows-att').innerHTML = rows.map(([s,n])=>`<a class="row ${UI.UNRESOLVED.has(s)?'w':''}" href="02-pagamenti.html?entita=tentativo&stato=${s}">
+    <span class="nm">${badge(s)}</span><span class="bar"><i data-bar-width="${f(n)/mx*100}"></i></span>
+    <span class="ct" data-k="att-${s}">${fmtN(f(n))}</span>${icon('chevron','go')}</a>`).join('');
+  UI.hydrateBars($('#rows-att'));
+  $('#more-att').textContent = showAll ? 'Mostra solo i principali' : 'Mostra tutti i 18 stati';
+}
+function renderKpis(){
+  const f = v => Math.round(v*factor);
+  const unres = f(287+96), payUnres = f(361);
+  $('#kpis').innerHTML = `
+   <div class="kpi"><div class="l">Pagamenti logici</div><div class="v" data-k="k-log">${fmtN(f(sumRows(LOG)))}</div><div class="d">in retention (60 giorni)</div></div>
+   <div class="kpi"><div class="l">Tentativi</div><div class="v" data-k="k-att">${fmtN(f(sumRows(ATT)))}</div><div class="d">token distinti</div></div>
+   <a class="kpi warn" href="02-pagamenti.html?entita=tentativo&non_risolti=1"><div class="l">Tentativi non risolti</div><div class="v">${fmtN(unres)}</div><div class="d">PAYMENT_UNKNOWN + PAYMENT_SEND_ERROR</div></a>
+   <a class="kpi warn" href="02-pagamenti.html?entita=pagamento&non_risolti=1"><div class="l">Pagamenti con casi non risolti</div><div class="v">${fmtN(payUnres)}</div><div class="d">almeno un tentativo non risolto</div></a>
+   <a class="kpi" href="02-pagamenti.html?anomalia=1"><div class="l">Anomalie data-ora</div><div class="v">${fmtN(f(37))}</div><div class="d">transizioni senza data</div></a>`;
+}
+function renderMatrix(){
+  const data = dim==='psp' ? PSP : CAN;
+  const f = v => Math.round(v*factor);
+  const head = `<thead><tr><th>${dim==='psp'?'PSP':'Canale'}</th>${COLS.map(c=>`<th class="num">${c}</th>`).join('')}<th class="num">Non risolti</th><th></th></tr></thead>`;
+  const body = data.map(([k,v])=>{
+    const un = v[3]+v[4];
+    return `<tr class="clickable" onclick="location.href='02-pagamenti.html?entita=tentativo&${dim}=${k==='Non disponibile'?'n.d.':k}'">
+      <td class="${k==='Non disponibile'?'not-available':'mono'}">${k}</td>
+      ${v.map((n,i)=>`<td class="num ${(i===3||i===4)&&n>0?'warn-cell':''}">${fmtN(f(n))}</td>`).join('')}
+      <td class="num"><b class="text-warning">${fmtN(f(un))}</b></td><td class="go">${icon('chevron')}</td></tr>`;}).join('');
+  $('#matrix').innerHTML = head+`<tbody>${body}</tbody>`;
+}
+function renderEnti(){
+  const f = v => Math.round(v*factor), mx = ENTI[0][1];
+  $('#enti-top').innerHTML = `<thead><tr><th>Ente (codice fiscale)</th><th>Tentativi avviati</th><th>Andamento</th><th class="num">Pagamenti logici</th><th class="num">Tentativi non risolti</th><th></th></tr></thead><tbody>`
+   + ENTI.map(([cf,n,sp,un])=>`<tr class="clickable" onclick="location.href='05-dettaglio-ente.html?cf=${cf}'">
+     <td class="mono">${cf}</td>
+     <td class="traffic-cell"><div class="traffic-cell-content"><div class="stack traffic-stack"><i class="stack-fill" data-bar-width="${n/mx*100}" data-bar-color="var(--primary)"></i></div><b class="num traffic-value traffic-value-narrow">${fmtN(f(n))}</b></div></td>
+     <td>${spark(sp)}</td><td class="num">${fmtN(f(n*.87))}</td>
+     <td class="num">${un?`<span class="badge b-warn">${icon('warn')}${f(un)}</span>`:'<span class="muted">0</span>'}</td><td class="go">${icon('chevron')}</td></tr>`).join('')+'</tbody>';
+  UI.hydrateBars($('#enti-top'));
+}
+function renderParts(){
+  const now = Date.now();
+  const P = [[0,1,'0x00A1F3C2',false],[1,2,'0x00A1F1B8',false],[2,252,'0x00A1E0D4',true],[3,1,'0x00A1F3A9',false]];
+  $('#parts').innerHTML = `<thead><tr><th>Partizione</th><th>Ultimo evento elaborato</th><th class="num">Ritardo</th><th>Checkpoint (offset)</th><th>Stato</th></tr></thead><tbody>`
+    + P.map(([p,lag,off,late])=>`<tr><td>${p}</td><td>${T(new Date(now-lag*1000).toISOString(),'time')}</td>
+      <td class="num">${lag<60?lag+' s':Math.floor(lag/60)+' min '+(lag%60)+' s'}</td><td class="mono">${off}</td>
+      <td>${late?`<span class="badge b-warn">${icon('warn')}Ritardo</span>`:'<span class="badge b-ok">Regolare</span>'}</td></tr>`).join('')+'</tbody>';
+  $('#fresh').innerHTML = `<span class="chip"><span class="dot warn"></span>Dati aggiornati alle ${T(new Date(now-1000).toISOString())} <em>· ritardo su 1 partizione su 4</em></span>`;
+  hydrateTimes();
+}
+function renderTrend(){
+  const r = rnd(7), n = 24, now = Date.now(), labels = [], src = [], inf = [];
+  for(let i=n-1;i>=0;i--){
+    const d = new Date(now - i*3600e3); labels.push(fmt(d.toISOString(),'hm').slice(0,2)+':00');
+    const hr = +new Intl.DateTimeFormat('en-GB',{timeZone:UI.tz(),hour:'2-digit',hour12:false}).format(d);
+    const base = 2400 + 11000*Math.exp(-Math.pow((hr-13)/4.2,2)) + 3600*Math.exp(-Math.pow((hr-20)/2.5,2)) ;
+    const v = Math.round(base*(0.92+r()*.16)); const x = Math.round(v*(0.04+r()*.03)); src.push(v-x); inf.push(x);
+  }
+  stackedBars($('#trend'),{labels,labelEvery:3,series:[{name:'Da evento',values:src,fill:'#0073E6'},{name:'Inferito',values:inf,fill:'url(#hatch)'}]});
+}
+function renderAll(){ renderKpis(); renderRows(); renderMatrix(); renderEnti(); }
+function recompute(){
+  const v = id => $(id).value;
+  factor = (v('#f-service')?.4:1)*(v('#f-psp')?.18:1)*(v('#f-canale')?.3:1)*(v('#f-stato')?.9:1);
+  const both = v('#f-psp') && v('#f-canale');
+  $('#f-note').classList.toggle('is-hidden', !both); $('#agg').classList.toggle('is-hidden', both);
+  if(!both){ renderAll(); renderTrend(); hydrateIcons(); }
+}
+$$('#filters select').forEach(s=>s.addEventListener('change',recompute));
+function fillStateFilter() {
+  const entity = $('#f-entity').value;
+  $('#state-filter-label').textContent = entity === 'logical' ? 'Stato pagamento' : 'Stato tentativo';
+  $('#f-stato').innerHTML = '<option value="">Tutti</option>' + UI.stateOptions(entity);
+}
+$('#f-entity').addEventListener('change', () => { fillStateFilter(); recompute(); });
+$('#f-reset').addEventListener('click',()=>{ $$('#filters select').forEach(s=>s.selectedIndex=0); fillStateFilter(); recompute(); });
+$('#more-att').addEventListener('click',()=>{ showAll=!showAll; renderRows(); hydrateIcons(); });
+$$('#dim-seg button').forEach(b=>b.addEventListener('click',()=>{ $$('#dim-seg button').forEach(x=>x.classList.toggle('on',x===b)); dim=b.dataset.d; renderMatrix(); hydrateIcons(); }));
+document.addEventListener('tzchange',()=>{ renderTrend(); renderParts(); });
+
+document.addEventListener('shellready',()=>{
+  fillStateFilter(); $('#semantics').innerHTML = UI.stateGuide();
+  renderAll(); renderTrend(); renderParts(); hydrateIcons();
+  $('#live').textContent = 'Anteprima statica · aggregati simulati';
+  // simula un delta aggregato coalesciato ogni 6 s
+  setInterval(()=>{
+    const el = $('[data-k="att-PAYMENT_SENT"]'); if(!el || factor!==1) return;
+    const cur = +el.textContent.replace(/\./g,''); el.textContent = fmtN(cur + (Math.random()>.5?2:-1));
+    el.closest('.row').classList.remove('flash'); void el.offsetWidth; el.closest('.row').classList.add('flash');
+  },6000);
+});
+</script>
+</body>
+</html>

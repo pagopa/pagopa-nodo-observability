@@ -1,0 +1,4659 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "API mock osservabilità pagamenti Nodo pagoPA",
+    "version": "0.4.0",
+    "description": "Contratto del mock in memoria (sola lettura, dati sintetici), allineato a mocks/server.mjs e mocks/model.mjs. Autenticazione fittizia solo per localhost. Nessun CORS: usare il proxy di sviluppo (richieste con Origin diverso da http://<Host> → 403, senza header CORS). Il paymentToken compare in reveal e nella consultazione diagnostica RE separata."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:3001",
+      "description": "Mock locale (PORT, default 3001), solo 127.0.0.1"
+    }
+  ],
+  "tags": [
+    {
+      "name": "system"
+    },
+    {
+      "name": "session"
+    },
+    {
+      "name": "reference"
+    },
+    {
+      "name": "payments"
+    },
+    {
+      "name": "overview"
+    },
+    {
+      "name": "creditors"
+    },
+    {
+      "name": "events"
+    },
+    {
+      "name": "mock-only",
+      "description": "Operazioni presenti solo nel mock."
+    }
+  ],
+  "security": [
+    {
+      "demoBearer": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["system"],
+        "operationId": "getHealth",
+        "summary": "Stato del mock (senza autenticazione)",
+        "security": [],
+        "description": "Non accetta query string (400).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": ["session"],
+        "operationId": "getMe",
+        "summary": "Utente e capacità",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/catalog": {
+      "get": {
+        "tags": ["reference"],
+        "operationId": "getCatalog",
+        "summary": "Cataloghi di stati e dimensioni",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Catalog"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/serviceIdentifiers": {
+      "get": {
+        "tags": ["reference"],
+        "operationId": "listServiceIdentifiers",
+        "summary": "Identificativi di servizio visibili",
+        "description": "Non accetta query string (400). La sicurezza demoBearer è applicata a livello di documento.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/freshness": {
+      "get": {
+        "tags": ["system"],
+        "operationId": "getFreshness",
+        "summary": "Freschezza della proiezione",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Freshness"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/apiconfig/maintenances": {
+      "get": {
+        "tags": ["system"],
+        "operationId": "getMaintenances",
+        "summary": "Manutenzioni programmate delle stazioni nei prossimi 7 giorni (cache giornaliera)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Maintenances" } } }
+          },
+          "400": { "$ref": "#/components/responses/E400" },
+          "401": { "$ref": "#/components/responses/E401" },
+          "403": { "$ref": "#/components/responses/E403" },
+          "503": {
+            "description": "Nessun dato disponibile: il servizio apiconfig non ha mai risposto.",
+            "content": { "application/json": { "schema": {
+              "type": "object", "additionalProperties": false,
+              "properties": { "code": { "const": "MAINTENANCE_UNAVAILABLE" }, "message": { "type": "string" } },
+              "required": ["code", "message"] } } }
+          },
+          "500": { "$ref": "#/components/responses/E500" }
+        }
+      }
+    },
+    "/api/payments": {
+      "get": {
+        "tags": ["payments"],
+        "operationId": "listPayments",
+        "summary": "Pagamenti logici (pagina di default 20, massimo 100)",
+        "description": "Ordinati per paFiscalCode/noticeNumber. I filtri tentativo restringono i pagamenti ma attemptCount resta totale. Con `from`/`to` (entrambi, oppure nessuno) sono restituiti solo i pagamenti con attività nell'intervallo, con la stessa regola degli aggregati dell'overview; senza intervallo l'elenco copre tutta la retention.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paFiscalCode"
+          },
+          {
+            "$ref": "#/components/parameters/noticeNumber"
+          },
+          {
+            "$ref": "#/components/parameters/logicalState"
+          },
+          {
+            "$ref": "#/components/parameters/attemptState"
+          },
+          {
+            "$ref": "#/components/parameters/serviceIdentifier"
+          },
+          {
+            "$ref": "#/components/parameters/psp"
+          },
+          {
+            "$ref": "#/components/parameters/canale"
+          },
+          {
+            "$ref": "#/components/parameters/stazione"
+          },
+          {
+            "$ref": "#/components/parameters/anomaliesOnly"
+          },
+          {
+            "$ref": "#/components/parameters/unresolvedOnly"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "$ref": "#/components/parameters/live"
+          },
+          {
+            "$ref": "#/components/parameters/pageSize"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["key"],
+              "default": "key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "410": {
+            "$ref": "#/components/responses/E410"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/attempts": {
+      "get": {
+        "tags": ["payments"],
+        "operationId": "listAttempts",
+        "summary": "Tentativi (pagina di default 20, massimo 100)",
+        "description": "Ordinati per attemptId. Mai paymentToken. Con `from`/`to` (entrambi, oppure nessuno) sono restituiti solo i tentativi con attività nell'intervallo, con la stessa regola degli aggregati dell'overview; senza intervallo l'elenco copre tutta la retention.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paFiscalCode"
+          },
+          {
+            "$ref": "#/components/parameters/noticeNumber"
+          },
+          {
+            "$ref": "#/components/parameters/logicalState"
+          },
+          {
+            "$ref": "#/components/parameters/attemptState"
+          },
+          {
+            "$ref": "#/components/parameters/serviceIdentifier"
+          },
+          {
+            "$ref": "#/components/parameters/psp"
+          },
+          {
+            "$ref": "#/components/parameters/canale"
+          },
+          {
+            "$ref": "#/components/parameters/stazione"
+          },
+          {
+            "$ref": "#/components/parameters/anomaliesOnly"
+          },
+          {
+            "$ref": "#/components/parameters/unresolvedOnly"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "$ref": "#/components/parameters/live"
+          },
+          {
+            "$ref": "#/components/parameters/pageSize"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["key"],
+              "default": "key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "410": {
+            "$ref": "#/components/responses/E410"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/payments/{paFiscalCode}/{noticeNumber}": {
+      "get": {
+        "tags": ["payments"],
+        "operationId": "getPayment",
+        "summary": "Dettaglio pagamento logico",
+        "description": "Non accetta query string.",
+        "parameters": [
+          {
+            "name": "paFiscalCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PaFiscalCode"
+            }
+          },
+          {
+            "name": "noticeNumber",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/NoticeNumber"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/attempts/{attemptId}/re-events": {
+      "post": {
+        "tags": ["payments"],
+        "operationId": "getAttemptReEvents",
+        "summary": "Consulta eventi RE e payload decodificati (sintetici nel mock)",
+        "description": "Ricerca on demand PA AND NAV AND paymentToken risolti sul server (con scope POSITION solo PA AND NAV: include gli eventi senza token, come verifyPaymentNotice), finestra UTC [from,to) massima 24 ore. Nessun filtro FSM, categoria o primitiva e nessuna correlazione alternativa. Nessuna modifica alla proiezione/SSE. 100 eventi/pagina, 1.000 per consultazione, 5 MiB per risposta; Base64 rigoroso e UTF-8, 256 KiB decodificati/evento. Cursore firmato vincolato a tentativo, finestra, watermark e limiti, TTL 5 minuti. Solo testo, nessun parsing XML/HTML. Timestamp sorgente originali, null e tipi scalari conservati. source RE indica il registro, non certifica un accesso reale: il mock dichiara sempre la simulazione nei warnings. Retention mock 30 giorni, indipendente dal TTL console. Backend reale disabilitato per default fino a verifica schema/fusi/retention/ordinamento/watermark/protezioni dati.",
+        "parameters": [{
+          "name": "attemptId", "in": "path", "required": true,
+          "schema": { "type": "string", "minLength": 1 }
+        }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReEventsRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Snapshot della sola finestra; vuoto non dimostra assenza del tentativo. Cache e persistenza vietate.",
+            "headers": { "Cache-Control": { "schema": { "const": "no-store" } } },
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReEventsResponse" } } }
+          },
+          "400": { "$ref": "#/components/responses/ReFailure" },
+          "401": { "$ref": "#/components/responses/E401" },
+          "403": { "$ref": "#/components/responses/E403" },
+          "404": { "$ref": "#/components/responses/E404" },
+          "410": { "$ref": "#/components/responses/ReFailure" },
+          "429": { "$ref": "#/components/responses/ReFailure" },
+          "502": { "$ref": "#/components/responses/ReFailure" },
+          "503": { "$ref": "#/components/responses/ReFailure" },
+          "504": { "$ref": "#/components/responses/ReFailure" },
+          "500": { "$ref": "#/components/responses/E500" }
+        }
+      }
+    },
+    "/api/attempts/{attemptId}/check-db": {
+      "get": {
+        "tags": ["payments"],
+        "operationId": "checkAttemptDatabase",
+        "summary": "Confronta gli stati osservati con nodo-online (simulato nel mock)",
+        "description": "Sola lettura, disponibile senza privilegi token. Non accetta query string. Il backend risolve serviceIdentifier e paymentToken dal tentativo, sceglie il database da configurazione e legge separatamente gli snapshot di posizione e tentativo. Non modifica la proiezione. null significa record DB assente, non coincidenza. source SIMULATED identifica risultati sintetici, NODO_ONLINE solo letture reali. La revisione identifica la proiezione confrontata; non garantisce una transazione distribuita tra proiezione e DB.",
+        "parameters": [
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Snapshot del controllo, anche con record DB assenti",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/DbCheck" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/E400" },
+          "401": { "$ref": "#/components/responses/E401" },
+          "403": { "$ref": "#/components/responses/E403" },
+          "404": { "$ref": "#/components/responses/E404" },
+          "422": {
+            "description": "serviceIdentifier assente o senza database configurato.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": { "enum": ["DB_SERVICE_MISSING", "DB_SERVICE_UNCONFIGURED"] },
+                    "message": { "type": "string" }
+                  },
+                  "required": ["code", "message"]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database non disponibile o timeout: nessun risultato parziale.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": { "const": "DB_UNAVAILABLE" },
+                    "message": { "type": "string" }
+                  },
+                  "required": ["code", "message"]
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/E500" }
+        }
+      }
+    },
+    "/api/attempts/{attemptId}/reveal": {
+      "post": {
+        "tags": ["payments"],
+        "operationId": "revealToken",
+        "summary": "Rivela il paymentToken (OPERATOR/ADMIN, con audit)",
+        "description": "Richiede Content-Type application/json e corpo {}. Audit TOKEN_REVEAL prima della risposta; se l'audit fallisce 500 AUDIT_UNAVAILABLE.",
+        "parameters": [
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^att_\\d{3}_\\d+$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "maxProperties": 0
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token in chiaro",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevealResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/token-lookup": {
+      "post": {
+        "tags": ["payments"],
+        "operationId": "lookupToken",
+        "summary": "Cerca un tentativo per paymentToken (OPERATOR/ADMIN, con audit)",
+        "description": "Il paymentToken viaggia solo nel body POST. `paFiscalCode` e `noticeNumber` sono filtri facoltativi indipendenti che restringono la ricerca senza sostituire la chiave token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenLookupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tentativo trovato",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenLookupResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/overview": {
+      "get": {
+        "tags": ["overview"],
+        "operationId": "getOverview",
+        "summary": "Panoramica aggregata",
+        "description": "Aggregati: al massimo una dimensione tra serviceIdentifier/psp/canale/stazione; stazione richiede paFiscalCode, altrimenti 422. Tutti i conteggi (stati di pagamenti, tentativi e destinatari, KPI, non risolti, matrici, anomalie, traffico, trend e durate) riguardano le sole entità con attività nell'intervallo [from, to): almeno una transizione datata nell'intervallo (o l'avvio del tentativo). Lo stato mostrato è quello corrente. Un pagamento è incluso se ha attività propria o di un suo tentativo/destinatario; contano solo i tentativi e i destinatari attivi. Le entità senza alcuna data (anomalia ANOMALY) non rientrano in nessun intervallo.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paFiscalCode"
+          },
+          {
+            "$ref": "#/components/parameters/noticeNumber"
+          },
+          {
+            "$ref": "#/components/parameters/logicalState"
+          },
+          {
+            "$ref": "#/components/parameters/attemptState"
+          },
+          {
+            "$ref": "#/components/parameters/serviceIdentifier"
+          },
+          {
+            "$ref": "#/components/parameters/psp"
+          },
+          {
+            "$ref": "#/components/parameters/canale"
+          },
+          {
+            "$ref": "#/components/parameters/stazione"
+          },
+          {
+            "$ref": "#/components/parameters/anomaliesOnly"
+          },
+          {
+            "$ref": "#/components/parameters/unresolvedOnly"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "$ref": "#/components/parameters/live"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Overview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/overview/primitive-warnings": {
+      "get": {
+        "tags": ["overview"],
+        "operationId": "listPrimitiveWarnings",
+        "summary": "Chiamate di primitiva senza risposta entro 10 secondi",
+        "description": "Dettaglio dei warning conteggiati in `Overview.primitives[].warnings` per una primitiva: una riga per chiamata senza risposta entro 10 s (risposta tardiva o assente), dalla più recente, con PSP, canale, ente, stazione e data-ora della chiamata. Stessa finestra e stessi filtri dell'overview (`serviceIdentifier=~unknown` per il servizio non disponibile); poiché è un elenco di tentativi, le dimensioni serviceIdentifier/psp/canale/stazione si possono combinare. Nessun payload né dato di pagamento. Paginazione a cursore; ogni cambio di revisione aggregata invalida i cursori (410).",
+        "parameters": [
+          {
+            "name": "primitive",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1, "maxLength": 128 },
+            "description": "Nome originale della primitiva (`tipoEvento` RE), come in `PrimitiveCount.primitive`."
+          },
+          {
+            "$ref": "#/components/parameters/paFiscalCode"
+          },
+          {
+            "$ref": "#/components/parameters/logicalState"
+          },
+          {
+            "$ref": "#/components/parameters/attemptState"
+          },
+          {
+            "$ref": "#/components/parameters/serviceIdentifier"
+          },
+          {
+            "$ref": "#/components/parameters/psp"
+          },
+          {
+            "$ref": "#/components/parameters/canale"
+          },
+          {
+            "$ref": "#/components/parameters/stazione"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "$ref": "#/components/parameters/live"
+          },
+          {
+            "$ref": "#/components/parameters/pageSize"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrimitiveWarningPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "410": {
+            "$ref": "#/components/responses/E410"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/creditors": {
+      "get": {
+        "tags": ["creditors"],
+        "operationId": "listCreditors",
+        "summary": "Enti creditori",
+        "description": "Aggregati: al massimo una dimensione tra serviceIdentifier/psp/canale/stazione; stazione richiede paFiscalCode, altrimenti 422.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paFiscalCode"
+          },
+          {
+            "$ref": "#/components/parameters/noticeNumber"
+          },
+          {
+            "$ref": "#/components/parameters/logicalState"
+          },
+          {
+            "$ref": "#/components/parameters/attemptState"
+          },
+          {
+            "$ref": "#/components/parameters/serviceIdentifier"
+          },
+          {
+            "$ref": "#/components/parameters/psp"
+          },
+          {
+            "$ref": "#/components/parameters/canale"
+          },
+          {
+            "$ref": "#/components/parameters/stazione"
+          },
+          {
+            "$ref": "#/components/parameters/anomaliesOnly"
+          },
+          {
+            "$ref": "#/components/parameters/unresolvedOnly"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "$ref": "#/components/parameters/pageSize"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["traffic", "unresolved"],
+              "default": "traffic"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditorPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "410": {
+            "$ref": "#/components/responses/E410"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/creditors/{paFiscalCode}": {
+      "get": {
+        "tags": ["creditors"],
+        "operationId": "getCreditor",
+        "summary": "Dettaglio ente",
+        "description": "Aggregati: al massimo una dimensione tra serviceIdentifier/psp/canale/stazione; stazione richiede paFiscalCode, altrimenti 422. pageSize, cursor e sort non sono ammessi (400). Un paFiscalCode in query deve coincidere con quello del path.",
+        "parameters": [
+          {
+            "name": "paFiscalCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PaFiscalCode"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/paFiscalCode"
+          },
+          {
+            "$ref": "#/components/parameters/noticeNumber"
+          },
+          {
+            "$ref": "#/components/parameters/logicalState"
+          },
+          {
+            "$ref": "#/components/parameters/attemptState"
+          },
+          {
+            "$ref": "#/components/parameters/serviceIdentifier"
+          },
+          {
+            "$ref": "#/components/parameters/psp"
+          },
+          {
+            "$ref": "#/components/parameters/canale"
+          },
+          {
+            "$ref": "#/components/parameters/stazione"
+          },
+          {
+            "$ref": "#/components/parameters/anomaliesOnly"
+          },
+          {
+            "$ref": "#/components/parameters/unresolvedOnly"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditorDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/creditors/{paFiscalCode}/stations": {
+      "get": {
+        "tags": ["creditors"],
+        "operationId": "listCreditorStations",
+        "summary": "Stazioni di un ente",
+        "description": "Aggregati: al massimo una dimensione tra serviceIdentifier/psp/canale/stazione; stazione richiede paFiscalCode, altrimenti 422. Ordinate per nome stazione.",
+        "parameters": [
+          {
+            "name": "paFiscalCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PaFiscalCode"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/paFiscalCode"
+          },
+          {
+            "$ref": "#/components/parameters/noticeNumber"
+          },
+          {
+            "$ref": "#/components/parameters/logicalState"
+          },
+          {
+            "$ref": "#/components/parameters/attemptState"
+          },
+          {
+            "$ref": "#/components/parameters/serviceIdentifier"
+          },
+          {
+            "$ref": "#/components/parameters/psp"
+          },
+          {
+            "$ref": "#/components/parameters/canale"
+          },
+          {
+            "$ref": "#/components/parameters/stazione"
+          },
+          {
+            "$ref": "#/components/parameters/anomaliesOnly"
+          },
+          {
+            "$ref": "#/components/parameters/unresolvedOnly"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "$ref": "#/components/parameters/pageSize"
+          },
+          {
+            "$ref": "#/components/parameters/cursor"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["key"],
+              "default": "key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StationPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "410": {
+            "$ref": "#/components/responses/E410"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/api/events": {
+      "get": {
+        "tags": ["events"],
+        "operationId": "streamEvents",
+        "summary": "Stream SSE di delta",
+        "description": "Risposta text/event-stream. Frame: `id` (cursore opaco di 32 caratteri), `event` (ready | payment.delta | aggregate.delta | list.changed) e `data` (JSON: ReadyEvent, PaymentDelta, AggregateDelta, ListChangedEvent). Commenti `: heartbeat` ogni 15 s. `scope=payment` richiede paFiscalCode+noticeNumber e ammette solo queste chiavi. `payment-list` richiede `keys`, un elenco ordinato o non ordinato di 1–100 chiavi PA:NAV (`11 cifre:18 cifre`), senza duplicati; `creditor-list` richiede 1–100 codici PA distinti. Entrambi accettano esclusivamente `scope` e `keys`; per una nuova sottoscrizione ogni chiave deve esistere ed essere autorizzata, altrimenti 404 senza dettagli. Una riconnessione con Last-Event-ID valido e legato a quello scope può invece riprodurre un'invalidazione per chiavi eliminate dopo lo snapshot; un cursore scaduto dà 410 prima del controllo di esistenza. Gli scope list ricevono `list.changed` solo quando cambia una chiave selezionata; il frame non contiene dati di pagamento. Le chiavi sono normalizzate in ordine lessicografico e lo scope di replay è legato a utente ed elenco esatto. Il client apre uno stream per la pagina corrente e confronta la revisione `ready` con `snapshotRevision` della pagina REST. `overview` ammette tutti i filtri REST e from/to (`stazione` richiede paFiscalCode); `creditor` richiede paFiscalCode, `station` paFiscalCode+stazione, più filtri e from/to opzionali. Combinazioni aggregate non supportate (più dimensioni, stazione senza ente) → 422. Gli scope aggregati ricevono un aggregate.delta per ogni pubblicazione, con gli stessi filtri e la stessa finestra fissa [from,to) fissata all'apertura (default ultima ora, riportata in `ready.window`); la riconnessione eredita la finestra memorizzata nel cursore. Per allinearsi esattamente il client legge lo snapshot REST con gli stessi filtri e `ready.window` (consigliato from/to espliciti). Last-Event-ID è legato a utente e scope; con replay gli eventi riprodotti precedono `ready`. Un evento può essere duplicato (stesso id). Dopo una pulizia per retention la cache di replay viene svuotata e un Last-Event-ID precedente dà 410 SSE_CURSOR_EXPIRED: aprire un nuovo stream e riallineare lo snapshot. Una nuova sottoscrizione a un pagamento eliminato dà 404; l'evento di cancellazione di uno stream già aperto viene comunque consegnato. Gli id degli eventi sono opachi e stabili per replay.",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "overview",
+                "creditor",
+                "station",
+                "payment",
+                "payment-list",
+                "creditor-list"
+              ]
+            }
+          },
+          {
+            "$ref": "#/components/parameters/paFiscalCode"
+          },
+          {
+            "$ref": "#/components/parameters/noticeNumber"
+          },
+          {
+            "$ref": "#/components/parameters/logicalState"
+          },
+          {
+            "$ref": "#/components/parameters/attemptState"
+          },
+          {
+            "$ref": "#/components/parameters/serviceIdentifier"
+          },
+          {
+            "$ref": "#/components/parameters/psp"
+          },
+          {
+            "$ref": "#/components/parameters/canale"
+          },
+          {
+            "$ref": "#/components/parameters/stazione"
+          },
+          {
+            "$ref": "#/components/parameters/anomaliesOnly"
+          },
+          {
+            "$ref": "#/components/parameters/unresolvedOnly"
+          },
+          {
+            "$ref": "#/components/parameters/from"
+          },
+          {
+            "$ref": "#/components/parameters/to"
+          },
+          {
+            "$ref": "#/components/parameters/live"
+          },
+          {
+            "name": "keys",
+            "in": "query",
+            "required": false,
+            "description": "Per payment-list: 1–100 chiavi PA:NAV separate da virgola; per creditor-list: 1–100 codici PA separati da virgola. Nessun duplicato; il server rifiuta l'intero scope se una chiave non è disponibile per l'utente. Lunghezza massima 3099 caratteri, limitata a questo parametro.",
+            "schema": {
+              "type": "string",
+              "minLength": 11,
+              "maxLength": 3099,
+              "pattern": "^[0-9:,]+$"
+            }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stream SSE.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "410": {
+            "$ref": "#/components/responses/E410"
+          },
+          "422": {
+            "$ref": "#/components/responses/E422"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/__mock/control": {
+      "post": {
+        "tags": ["mock-only"],
+        "operationId": "mockControl",
+        "summary": "Controllo del mock (solo ADMIN)",
+        "description": "Solo ADMIN, senza query string, Content-Type application/json.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MockControlRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Azione eseguita",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockControlResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    },
+    "/__mock/audit": {
+      "get": {
+        "tags": ["mock-only"],
+        "operationId": "mockAudit",
+        "summary": "Audit delle operazioni sul token (solo ADMIN)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockAudit"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "500": {
+            "$ref": "#/components/responses/E500"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "demoBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "DEMO_VIEWER, DEMO_OPERATOR, DEMO_PA_VIEWER (solo ente 00000000001), DEMO_ADMIN. Solo localhost."
+      }
+    },
+    "parameters": {
+      "paFiscalCode": {
+        "name": "paFiscalCode",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/PaFiscalCode"
+        }
+      },
+      "noticeNumber": {
+        "name": "noticeNumber",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/NoticeNumber"
+        }
+      },
+      "logicalState": {
+        "name": "logicalState",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/LogicalState"
+        }
+      },
+      "attemptState": {
+        "name": "attemptState",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/AttemptState"
+        }
+      },
+      "serviceIdentifier": {
+        "name": "serviceIdentifier",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "description": "Valore esatto; ~unknown seleziona i tentativi con dimensione null."
+      },
+      "psp": {
+        "name": "psp",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "description": "Valore esatto; ~unknown seleziona i tentativi con dimensione null."
+      },
+      "canale": {
+        "name": "canale",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "description": "Valore esatto; ~unknown seleziona i tentativi con dimensione null."
+      },
+      "stazione": {
+        "name": "stazione",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "anomaliesOnly": {
+        "name": "anomaliesOnly",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "enum": ["true", "false"]
+        }
+      },
+      "unresolvedOnly": {
+        "name": "unresolvedOnly",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "enum": ["true", "false"],
+          "description": "true: solo tentativi in PAYMENT_UNKNOWN/PAYMENT_SEND_ERROR."
+        }
+      },
+      "live": {
+        "name": "live",
+        "in": "query",
+        "required": false,
+        "description": "Overview, elenchi pagamenti/tentativi e scope SSE overview. `true`: finestra mobile (intervalli predefiniti), aperta a destra: le attività successive a `to` si contano comunque (conteggi, trend e primitive). `from`/`to` restano quelli del client. Assente o `false`: finestra chiusa [from,to).",
+        "schema": {
+          "enum": ["true", "false"]
+        }
+      },
+      "from": {
+        "name": "from",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+        },
+        "description": "Estremo incluso, UTC al millisecondo. Default: ora - 1 ora."
+      },
+      "to": {
+        "name": "to",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+        },
+        "description": "Estremo escluso, UTC al millisecondo. Default: ora. from < to e to - from <= 60 giorni, altrimenti 400."
+      },
+      "pageSize": {
+        "name": "pageSize",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      },
+      "cursor": {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{32}$"
+        }
+      }
+    },
+    "responses": {
+      "ReFailure": {
+        "description": "Errore diagnostico distinto dallo snapshot vuoto: 400 intervallo/cursore non valido, 410 tentativo scaduto ancora risolvibile dal repository, 429 throttling, 502 ADX/contratto, 503 configurazione/verifiche assenti, 504 timeout. Intervalli validi fuori retention/disponibilità restituiscono 200 vuoto con warning OUTSIDE_RETENTION/OUTSIDE_AVAILABLE_WINDOW, senza query sorgente. Nessun contenuto RE nel messaggio.",
+        "headers": { "Cache-Control": { "schema": { "const": "no-store" } } },
+        "content": { "application/json": { "schema": {
+          "type": "object", "additionalProperties": false,
+          "properties": { "code": { "type": "string" }, "message": { "type": "string" } },
+          "required": ["code", "message"]
+        } } }
+      },
+      "E400": {
+        "description": "Richiesta non valida: parametro sconosciuto/duplicato/malformato, corpo non JSON, cursore malformato o non appartenente alla ricerca.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error400"
+            }
+          }
+        }
+      },
+      "E401": {
+        "description": "Bearer assente o sconosciuto.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error401"
+            }
+          }
+        },
+        "headers": {
+          "WWW-Authenticate": {
+            "schema": {
+              "const": "Bearer realm=\"local-demo\""
+            }
+          }
+        }
+      },
+      "E403": {
+        "description": "Ruolo/ente non consentito oppure header Origin diverso da `http://<Host>` (CORS disabilitato, nessun header CORS).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error403"
+            }
+          }
+        }
+      },
+      "E404": {
+        "description": "Risorsa assente, non visibile o scaduta per retention.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error404"
+            }
+          }
+        }
+      },
+      "E410": {
+        "description": "Cursore scaduto o snapshot cambiato (CURSOR_EXPIRED), oppure Last-Event-ID non riproducibile, anche dopo pulizia per retention (SSE_CURSOR_EXPIRED, resync true).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error410"
+            }
+          }
+        }
+      },
+      "E422": {
+        "description": "Aggregazione non supportata.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error422"
+            }
+          }
+        }
+      },
+      "E500": {
+        "description": "Errore interno: MOCK_FAILURE (modalità failure), AUDIT_UNAVAILABLE (audit) o INTERNAL_ERROR.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error500"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ReScalar": { "type": ["string", "number", "boolean", "null"] },
+      "ReWindow": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "from": { "type": "string", "format": "date-time", "pattern": "Z$" },
+          "to": { "type": "string", "format": "date-time", "pattern": "Z$" }
+        },
+        "required": ["from", "to"]
+      },
+      "ReEventsRequest": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "from": { "type": "string", "format": "date-time", "pattern": "Z$" },
+          "to": { "type": "string", "format": "date-time", "pattern": "Z$" },
+          "cursor": { "type": "string", "minLength": 1, "maxLength": 8192 },
+          "scope": {
+            "type": "string", "enum": ["ATTEMPT", "POSITION"],
+            "description": "ATTEMPT (predefinito): PA + NAV + paymentToken del tentativo. POSITION: solo PA + NAV, quindi include le chiamate prive di paymentToken (verifyPaymentNotice) e quelle di ogni token; la risposta aggiunge il warning POSITION_SCOPE. Il cursore resta vincolato allo scope."
+          }
+        },
+        "required": ["from", "to"]
+      },
+      "ReEvent": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "insertedTimestamp": { "$ref": "#/components/schemas/ReScalar" },
+          "componente": { "$ref": "#/components/schemas/ReScalar" },
+          "categoriaEvento": { "$ref": "#/components/schemas/ReScalar" },
+          "sottoTipoEvento": { "$ref": "#/components/schemas/ReScalar" },
+          "idDominio": { "$ref": "#/components/schemas/ReScalar" },
+          "iuv": { "$ref": "#/components/schemas/ReScalar" },
+          "ccp": { "$ref": "#/components/schemas/ReScalar" },
+          "psp": { "$ref": "#/components/schemas/ReScalar" },
+          "tipoVersamento": { "$ref": "#/components/schemas/ReScalar" },
+          "tipoEvento": { "$ref": "#/components/schemas/ReScalar" },
+          "fruitore": { "$ref": "#/components/schemas/ReScalar" },
+          "erogatore": { "$ref": "#/components/schemas/ReScalar" },
+          "stazione": { "$ref": "#/components/schemas/ReScalar" },
+          "canale": { "$ref": "#/components/schemas/ReScalar" },
+          "parametriSpecificiInterfaccia": { "$ref": "#/components/schemas/ReScalar" },
+          "esito": { "$ref": "#/components/schemas/ReScalar" },
+          "sessionId": { "$ref": "#/components/schemas/ReScalar" },
+          "status": { "$ref": "#/components/schemas/ReScalar" },
+          "payload": { "type": ["string", "null"] },
+          "info": { "$ref": "#/components/schemas/ReScalar" },
+          "businessProcess": { "$ref": "#/components/schemas/ReScalar" },
+          "fruitoreDescr": { "$ref": "#/components/schemas/ReScalar" },
+          "erogatoreDescr": { "$ref": "#/components/schemas/ReScalar" },
+          "pspDescr": { "$ref": "#/components/schemas/ReScalar" },
+          "noticeNumber": { "$ref": "#/components/schemas/ReScalar" },
+          "creditorReferenceId": { "$ref": "#/components/schemas/ReScalar" },
+          "paymentToken": { "$ref": "#/components/schemas/ReScalar" },
+          "sessionIdOriginal": { "$ref": "#/components/schemas/ReScalar" },
+          "standIn": { "$ref": "#/components/schemas/ReScalar" },
+          "serviceIdentifier": { "$ref": "#/components/schemas/ReScalar" },
+          "dataOraEvento": { "$ref": "#/components/schemas/ReScalar" },
+          "uniqueId": { "$ref": "#/components/schemas/ReScalar" },
+          "version": { "$ref": "#/components/schemas/ReScalar" },
+          "payloadOmitted": { "type": "boolean" },
+          "payloadSourceBytes": { "type": ["integer", "null"], "minimum": 0 },
+          "payloadDecoded": {
+            "type": "object", "additionalProperties": false,
+            "properties": {
+              "status": { "enum": ["ABSENT", "DECODED", "INVALID_BASE64", "INVALID_UTF8", "TOO_LARGE"] },
+              "text": { "type": ["string", "null"] },
+              "reason": { "type": ["string", "null"] }
+            },
+            "required": ["status", "text", "reason"]
+          }
+        },
+        "required": ["insertedTimestamp", "componente", "categoriaEvento", "sottoTipoEvento", "idDominio", "iuv", "ccp", "psp", "tipoVersamento", "tipoEvento", "fruitore", "erogatore", "stazione", "canale", "parametriSpecificiInterfaccia", "esito", "sessionId", "status", "payload", "info", "businessProcess", "fruitoreDescr", "erogatoreDescr", "pspDescr", "noticeNumber", "creditorReferenceId", "paymentToken", "sessionIdOriginal", "standIn", "serviceIdentifier", "dataOraEvento", "uniqueId", "version", "payloadOmitted", "payloadSourceBytes", "payloadDecoded"]
+      },
+      "ReEventsResponse": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "attemptId": { "type": "string", "minLength": 1 },
+          "source": { "const": "RE" },
+          "retrievedAt": { "type": "string", "format": "date-time", "pattern": "Z$" },
+          "window": { "$ref": "#/components/schemas/ReWindow" },
+          "coverage": { "enum": ["WINDOW_ONLY", "RETENTION_CLIPPED", "LIMIT_REACHED"] },
+          "events": { "type": "array", "maxItems": 100, "items": { "$ref": "#/components/schemas/ReEvent" } },
+          "nextCursor": { "type": ["string", "null"] },
+          "truncated": { "type": "boolean" },
+          "warnings": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["attemptId", "source", "retrievedAt", "window", "coverage", "events", "nextCursor", "truncated", "warnings"]
+      },
+      "DbCheck": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "attemptId": { "type": "string", "minLength": 1 },
+          "paFiscalCode": { "type": "string", "pattern": "^\\d{11}$" },
+          "noticeNumber": { "type": "string", "pattern": "^\\d{18}$" },
+          "serviceIdentifier": { "type": "string", "minLength": 1 },
+          "projectionRevision": { "type": "integer", "minimum": 1 },
+          "source": { "enum": ["SIMULATED", "NODO_ONLINE"] },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "observed": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "logicalState": { "$ref": "#/components/schemas/LogicalState" },
+              "attemptState": { "$ref": "#/components/schemas/AttemptState" }
+            },
+            "required": ["logicalState", "attemptState"]
+          },
+          "database": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "logicalState": {
+                "anyOf": [{ "$ref": "#/components/schemas/LogicalState" }, { "type": "null" }]
+              },
+              "attemptState": {
+                "anyOf": [{ "$ref": "#/components/schemas/AttemptState" }, { "type": "null" }]
+              }
+            },
+            "required": ["logicalState", "attemptState"]
+          }
+        },
+        "required": [
+          "attemptId",
+          "paFiscalCode",
+          "noticeNumber",
+          "serviceIdentifier",
+          "projectionRevision",
+          "source",
+          "checkedAt",
+          "observed",
+          "database"
+        ]
+      },
+      "LogicalState": {
+        "type": "string",
+        "enum": ["INSERTED", "PAYING", "PAID", "NOTICE_STORED", "NOTIFIED"]
+      },
+      "AttemptState": {
+        "type": "string",
+        "enum": [
+          "PAYING",
+          "PAYING_RPT",
+          "PAID_NORPT",
+          "PAID",
+          "FAILED_NORPT",
+          "FAILED",
+          "CANCELLED",
+          "CANCELLED_NORPT",
+          "NOTICE_GENERATED",
+          "NOTICE_STORED",
+          "NOTICE_SENT",
+          "NOTIFIED",
+          "PAYMENT_RESERVED",
+          "PAYMENT_SENT",
+          "PAYMENT_ACCEPTED",
+          "PAYMENT_REFUSED",
+          "PAYMENT_UNKNOWN",
+          "PAYMENT_SEND_ERROR"
+        ]
+      },
+      "TimestampBasis": {
+        "type": "string",
+        "enum": ["SOURCE_EVENT", "INFERRED", "ANOMALY"],
+        "description": "ANOMALY implica transitionAt null; INFERRED indica data stimata."
+      },
+      "PaFiscalCode": {
+        "type": "string",
+        "pattern": "^\\d{11}$"
+      },
+      "NoticeNumber": {
+        "type": "string",
+        "pattern": "^\\d{18}$"
+      },
+      "LogicalTimelineItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/LogicalState"
+          },
+          "transitionAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "timestampBasis": {
+            "$ref": "#/components/schemas/TimestampBasis"
+          },
+          "trigger": {
+            "type": ["string", "null"],
+            "description": "Provenienza applicativa del cambio stato, se nota; non dedotta dal solo stato finale."
+          }
+        },
+        "required": ["state", "transitionAt", "timestampBasis"],
+        "if": {
+          "properties": {
+            "timestampBasis": {
+              "const": "ANOMALY"
+            }
+          },
+          "required": ["timestampBasis"]
+        },
+        "then": {
+          "properties": {
+            "transitionAt": {
+              "type": "null"
+            }
+          }
+        },
+        "else": {
+          "properties": {
+            "transitionAt": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AttemptTimelineItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/AttemptState"
+          },
+          "transitionAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "timestampBasis": {
+            "$ref": "#/components/schemas/TimestampBasis"
+          },
+          "trigger": {
+            "type": ["string", "null"],
+            "description": "Provenienza applicativa del cambio stato, se nota; può differire dalla chiamata di trasporto immediata e non è dedotta dal solo stato finale."
+          }
+        },
+        "required": ["state", "transitionAt", "timestampBasis"],
+        "if": {
+          "properties": {
+            "timestampBasis": {
+              "const": "ANOMALY"
+            }
+          },
+          "required": ["timestampBasis"]
+        },
+        "then": {
+          "properties": {
+            "transitionAt": {
+              "type": "null"
+            }
+          }
+        },
+        "else": {
+          "properties": {
+            "transitionAt": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Attempt": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "attemptId": {
+            "type": "string",
+            "pattern": "^att_\\d{3}_\\d+$",
+            "description": "Identificativo tecnico stabile (es. att_001_1); non deriva dal paymentToken."
+          },
+          "serviceIdentifier": {
+            "type": ["string", "null"]
+          },
+          "psp": {
+            "type": ["string", "null"]
+          },
+          "stazione": {
+            "type": ["string", "null"]
+          },
+          "canale": {
+            "type": ["string", "null"]
+          },
+          "attemptStartedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "startTimestampBasis": {
+            "$ref": "#/components/schemas/TimestampBasis"
+          },
+          "timelineIncomplete": {
+            "type": "boolean"
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttemptTimelineItem"
+            },
+            "minItems": 1
+          },
+          "paFiscalCode": {
+            "$ref": "#/components/schemas/PaFiscalCode"
+          },
+          "noticeNumber": {
+            "$ref": "#/components/schemas/NoticeNumber"
+          },
+          "state": {
+            "$ref": "#/components/schemas/AttemptState"
+          },
+          "warning": {
+            "type": "boolean"
+          },
+          "hasAnomaly": {
+            "type": "boolean"
+          },
+          "tokenDisplay": {
+            "type": "string",
+            "description": "paymentToken del tentativo, mostrato in chiaro."
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "attemptId",
+          "serviceIdentifier",
+          "psp",
+          "stazione",
+          "canale",
+          "attemptStartedAt",
+          "startTimestampBasis",
+          "timelineIncomplete",
+          "timeline",
+          "paFiscalCode",
+          "noticeNumber",
+          "state",
+          "warning",
+          "hasAnomaly",
+          "tokenDisplay",
+          "projectionRevision"
+        ],
+        "description": "Tentativo sicuro. Nessuna proprietà aggiuntiva: paymentToken, firstSeenAt e expiresAt non devono mai comparire."
+      },
+      "PaymentSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "paFiscalCode": {
+            "$ref": "#/components/schemas/PaFiscalCode"
+          },
+          "noticeNumber": {
+            "$ref": "#/components/schemas/NoticeNumber"
+          },
+          "state": {
+            "$ref": "#/components/schemas/LogicalState"
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "timelineIncomplete": {
+            "type": "boolean"
+          },
+          "hasAnomaly": {
+            "type": "boolean"
+          },
+          "warning": {
+            "type": "boolean"
+          },
+          "attemptCount": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Conta tutti i tentativi del pagamento, anche con filtri tentativo attivi."
+          }
+        },
+        "required": [
+          "paFiscalCode",
+          "noticeNumber",
+          "state",
+          "projectionRevision",
+          "timelineIncomplete",
+          "hasAnomaly",
+          "warning",
+          "attemptCount"
+        ]
+      },
+      "PaymentDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "paFiscalCode": {
+            "$ref": "#/components/schemas/PaFiscalCode"
+          },
+          "noticeNumber": {
+            "$ref": "#/components/schemas/NoticeNumber"
+          },
+          "state": {
+            "$ref": "#/components/schemas/LogicalState"
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "timelineIncomplete": {
+            "type": "boolean"
+          },
+          "hasAnomaly": {
+            "type": "boolean"
+          },
+          "warning": {
+            "type": "boolean"
+          },
+          "attemptCount": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Conta tutti i tentativi del pagamento, anche con filtri tentativo attivi."
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogicalTimelineItem"
+            },
+            "minItems": 1
+          },
+          "attempts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Attempt"
+            },
+            "minItems": 1
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Recipient"
+            }
+          }
+        },
+        "required": [
+          "paFiscalCode",
+          "noticeNumber",
+          "state",
+          "projectionRevision",
+          "timelineIncomplete",
+          "hasAnomaly",
+          "warning",
+          "attemptCount",
+          "timeline",
+          "attempts",
+          "recipients"
+        ]
+      },
+      "PaymentPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentSummary"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "pattern": "^[A-Za-z0-9_-]{32}$",
+            "description": "Cursore opaco, TTL 5 minuti."
+          },
+          "snapshotRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Revisione aggregata; ogni suo cambiamento invalida i cursori (410)."
+          }
+        },
+        "required": ["items", "nextCursor", "snapshotRevision"]
+      },
+      "AttemptPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Attempt"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "pattern": "^[A-Za-z0-9_-]{32}$",
+            "description": "Cursore opaco, TTL 5 minuti."
+          },
+          "snapshotRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Revisione aggregata; ogni suo cambiamento invalida i cursori (410)."
+          }
+        },
+        "required": ["items", "nextCursor", "snapshotRevision"]
+      },
+      "Me": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "enum": ["demo-viewer", "demo-pa-viewer", "demo-operator", "demo-admin"]
+          },
+          "role": {
+            "enum": ["viewer", "operator", "admin"]
+          },
+          "visiblePaFiscalCodes": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaFiscalCode"
+                },
+                "minItems": 1
+              }
+            ],
+            "description": "null = tutti gli enti."
+          },
+          "capabilities": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "lookupToken": {
+                "type": "boolean"
+              },
+              "revealToken": {
+                "type": "boolean"
+              },
+              "mockControls": {
+                "type": "boolean"
+              }
+            },
+            "required": ["lookupToken", "revealToken", "mockControls"]
+          },
+          "authentication": {
+            "const": "LOCAL_DEMO_ONLY"
+          }
+        },
+        "required": ["id", "role", "visiblePaFiscalCodes", "capabilities", "authentication"]
+      },
+      "Catalog": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "logicalStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogicalState"
+            }
+          },
+          "attemptStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttemptState"
+            }
+          },
+          "warningStates": {
+            "type": "array",
+            "items": {
+              "enum": ["PAYMENT_UNKNOWN", "PAYMENT_SEND_ERROR"]
+            }
+          },
+          "unknownFilterValue": {
+            "const": "~unknown"
+          },
+          "serviceIdentifiers": {
+            "type": "array",
+            "items": {
+              "type": ["string", "null"]
+            }
+          },
+          "psps": {
+            "type": "array",
+            "items": {
+              "type": ["string", "null"]
+            }
+          },
+          "canali": {
+            "type": "array",
+            "items": {
+              "type": ["string", "null"]
+            }
+          },
+          "stazioni": {
+            "type": "array",
+            "items": {
+              "type": ["string", "null"]
+            }
+          },
+          "aggregateFilterPolicy": {
+            "const": "ONE_ATTEMPT_DIMENSION;STATION_REQUIRES_PA"
+          }
+        },
+        "required": [
+          "logicalStates",
+          "attemptStates",
+          "warningStates",
+          "unknownFilterValue",
+          "serviceIdentifiers",
+          "psps",
+          "canali",
+          "stazioni",
+          "aggregateFilterPolicy"
+        ],
+        "description": "I valori delle dimensioni sono ordinati e limitati agli enti visibili; null indica dimensione non disponibile (filtrabile con ~unknown)."
+      },
+      "Freshness": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "enum": ["CURRENT", "DELAYED", "GAP"]
+          },
+          "lagSeconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "gapsDetected": {
+            "type": "boolean"
+          },
+          "lastProcessedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "lastPublishedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          }
+        },
+        "required": [
+          "status",
+          "lagSeconds",
+          "gapsDetected",
+          "lastProcessedAt",
+          "lastPublishedAt",
+          "observedAt"
+        ]
+      },
+      "RevealResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "attemptId": {
+            "type": "string"
+          },
+          "paymentToken": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["attemptId", "paymentToken"],
+        "description": "Unica risposta che contiene il paymentToken in chiaro."
+      },
+      "TokenLookupRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "paymentToken": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "paFiscalCode": {
+            "$ref": "#/components/schemas/PaFiscalCode"
+          },
+          "noticeNumber": {
+            "$ref": "#/components/schemas/NoticeNumber"
+          }
+        },
+        "required": ["paymentToken"]
+      },
+      "TokenLookupResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "paFiscalCode": {
+            "$ref": "#/components/schemas/PaFiscalCode"
+          },
+          "noticeNumber": {
+            "$ref": "#/components/schemas/NoticeNumber"
+          },
+          "attemptId": {
+            "type": "string"
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": ["paFiscalCode", "noticeNumber", "attemptId", "projectionRevision"]
+      },
+      "LogicalStateCount": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/LogicalState"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["state", "count"]
+      },
+      "AttemptStateCount": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/AttemptState"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["state", "count"]
+      },
+      "Window": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          }
+        },
+        "required": ["from", "to"],
+        "description": "Finestra semiaperta [from, to), UTC al millisecondo, massimo 60 giorni."
+      },
+      "DimensionRow": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "type": ["string", "null"],
+            "description": "null = dimensione non disponibile"
+          },
+          "states": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttemptStateCount"
+            }
+          }
+        },
+        "required": ["value", "states"]
+      },
+      "TrafficBucket": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "bucketStart": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "startedAttempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "estimatedStarts": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["bucketStart", "startedAttempts", "estimatedStarts"]
+      },
+      "TransitionTrend": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "bucketStart": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "entity": {
+            "enum": ["logical", "attempt", "recipient"]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "INSERTED",
+              "PAYING",
+              "PAID",
+              "NOTICE_STORED",
+              "NOTIFIED",
+              "PAYING_RPT",
+              "PAID_NORPT",
+              "FAILED_NORPT",
+              "FAILED",
+              "CANCELLED",
+              "CANCELLED_NORPT",
+              "NOTICE_GENERATED",
+              "NOTICE_SENT",
+              "PAYMENT_RESERVED",
+              "PAYMENT_SENT",
+              "PAYMENT_ACCEPTED",
+              "PAYMENT_REFUSED",
+              "PAYMENT_UNKNOWN",
+              "PAYMENT_SEND_ERROR",
+              "NOTICE_PENDING"
+            ]
+          },
+          "timestampBasis": {
+            "type": "string",
+            "enum": ["SOURCE_EVENT", "INFERRED"]
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": ["bucketStart", "entity", "state", "timestampBasis", "count"]
+      },
+      "DurationRow": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "entity": {
+            "enum": ["logical", "attempt", "recipient"]
+          },
+          "fromState": {
+            "type": "string"
+          },
+          "toState": {
+            "type": "string"
+          },
+          "timestampBasis": {
+            "type": "string",
+            "enum": ["SOURCE_EVENT", "INFERRED"]
+          },
+          "samples": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "averageMs": {
+            "type": "number",
+            "minimum": 0
+          },
+          "medianMs": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Mediana nearest-rank sui campioni reali."
+          },
+          "p95Ms": {
+            "type": "number",
+            "minimum": 0,
+            "description": "95° percentile nearest-rank sui campioni reali."
+          }
+        },
+        "required": [
+          "entity",
+          "fromState",
+          "toState",
+          "timestampBasis",
+          "samples",
+          "averageMs",
+          "medianMs",
+          "p95Ms"
+        ]
+      },
+      "Aggregate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshotAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "window": {
+            "$ref": "#/components/schemas/Window"
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "payments": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["payments", "attempts"]
+          },
+          "logicalStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogicalStateCount"
+            }
+          },
+          "attemptStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttemptStateCount"
+            }
+          },
+          "unresolved": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "payments": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["payments", "attempts"]
+          },
+          "matrices": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "psp": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DimensionRow"
+                }
+              },
+              "canale": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DimensionRow"
+                }
+              },
+              "recipient": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RecipientDimensionRow"
+                }
+              }
+            },
+            "required": ["psp", "canale", "recipient"]
+          },
+          "traffic": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrafficBucket"
+            }
+          },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransitionTrend"
+            }
+          },
+          "durations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DurationRow"
+            }
+          },
+          "anomalies": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "transitions": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "payments": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["transitions", "payments"]
+          },
+          "recipientStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipientStateCount"
+            }
+          }
+        },
+        "required": [
+          "snapshotAt",
+          "projectionRevision",
+          "window",
+          "counts",
+          "logicalStates",
+          "attemptStates",
+          "unresolved",
+          "matrices",
+          "traffic",
+          "transitions",
+          "durations",
+          "anomalies",
+          "recipientStates"
+        ]
+      },
+      "Overview": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "snapshotAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "window": {
+            "$ref": "#/components/schemas/Window"
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "payments": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["payments", "attempts"]
+          },
+          "logicalStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogicalStateCount"
+            }
+          },
+          "attemptStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttemptStateCount"
+            }
+          },
+          "unresolved": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "payments": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["payments", "attempts"]
+          },
+          "matrices": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "psp": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DimensionRow"
+                }
+              },
+              "canale": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DimensionRow"
+                }
+              },
+              "recipient": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RecipientDimensionRow"
+                }
+              }
+            },
+            "required": ["psp", "canale", "recipient"]
+          },
+          "traffic": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrafficBucket"
+            }
+          },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransitionTrend"
+            }
+          },
+          "durations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DurationRow"
+            }
+          },
+          "anomalies": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "transitions": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "payments": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["transitions", "payments"]
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/Freshness"
+          },
+          "recipientStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipientStateCount"
+            }
+          },
+          "primitives": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrimitiveCount"
+            }
+          }
+        },
+        "required": [
+          "snapshotAt",
+          "projectionRevision",
+          "window",
+          "counts",
+          "logicalStates",
+          "attemptStates",
+          "unresolved",
+          "matrices",
+          "traffic",
+          "transitions",
+          "durations",
+          "anomalies",
+          "freshness",
+          "recipientStates",
+          "primitives"
+        ]
+      },
+      "PrimitiveCount": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "serviceIdentifier": {
+            "type": ["string", "null"],
+            "description": "Identificativo di servizio del tentativo; null se non disponibile."
+          },
+          "primitive": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Nome originale della primitiva (`tipoEvento` RE), senza normalizzazione."
+          },
+          "direction": {
+            "type": "string",
+            "enum": ["INBOUND", "OUTBOUND", "UNKNOWN"],
+            "description": "Direzione della chiamata rispetto al Nodo, dai campi RE `fruitore`/`erogatore` dell'evento REQ: `INBOUND` se il Nodo è l'erogatore (altri sistemi lo chiamano), `OUTBOUND` se il Nodo è il fruitore (chiama PA o PSP), `UNKNOWN` se nessuno dei due è il Nodo o i campi sono assenti. Mai dedotta dal nome della primitiva."
+          },
+          "requests": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Richieste di primitiva inviate nella finestra."
+          },
+          "responses": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Richieste per cui è stata ricevuta una risposta."
+          },
+          "warnings": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Richieste senza risposta entro 10 secondi (risposta tardiva o assente)."
+          }
+        },
+        "required": ["serviceIdentifier", "primitive", "direction", "requests", "responses", "warnings"],
+        "description": "Conteggio delle primitive per serviceIdentifier, primitiva e direzione, ottenuto dagli eventi RE REQ/RESP abbinati. Nessun payload."
+      },
+      "PrimitiveWarning": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "calledAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+            "description": "Data-ora (UTC) della richiesta di primitiva rimasta senza risposta entro 10 secondi."
+          },
+          "psp": {
+            "type": ["string", "null"],
+            "description": "PSP del tentativo; null se non disponibile."
+          },
+          "canale": {
+            "type": ["string", "null"],
+            "description": "Canale del tentativo; null se non disponibile."
+          },
+          "paFiscalCode": {
+            "type": ["string", "null"],
+            "pattern": "^\\d{11}$",
+            "description": "Ente creditore (idDominio) della richiesta; null se non disponibile."
+          },
+          "stazione": {
+            "type": ["string", "null"],
+            "description": "Stazione del tentativo; null se non disponibile."
+          }
+        },
+        "required": ["calledAt", "psp", "canale", "paFiscalCode", "stazione"],
+        "description": "Chiamata di primitiva senza risposta entro 10 secondi. Solo gli attributi del tentativo; nessun payload, token o dato di pagamento."
+      },
+      "PrimitiveWarningPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PrimitiveWarning"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "pattern": "^[A-Za-z0-9_-]{32}$",
+            "description": "Cursore opaco, TTL 5 minuti."
+          },
+          "snapshotRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Revisione aggregata; ogni suo cambiamento invalida i cursori (410)."
+          }
+        },
+        "required": ["items", "nextCursor", "snapshotRevision"]
+      },
+      "CreditorDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "paFiscalCode": {
+            "$ref": "#/components/schemas/PaFiscalCode"
+          },
+          "snapshotAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "window": {
+            "$ref": "#/components/schemas/Window"
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "payments": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["payments", "attempts"]
+          },
+          "logicalStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogicalStateCount"
+            }
+          },
+          "attemptStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttemptStateCount"
+            }
+          },
+          "unresolved": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "payments": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["payments", "attempts"]
+          },
+          "matrices": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "psp": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DimensionRow"
+                }
+              },
+              "canale": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DimensionRow"
+                }
+              },
+              "recipient": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RecipientDimensionRow"
+                }
+              }
+            },
+            "required": ["psp", "canale", "recipient"]
+          },
+          "traffic": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrafficBucket"
+            }
+          },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransitionTrend"
+            }
+          },
+          "durations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DurationRow"
+            }
+          },
+          "anomalies": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "transitions": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "payments": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["transitions", "payments"]
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/Freshness"
+          },
+          "recipientStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipientStateCount"
+            }
+          }
+        },
+        "required": [
+          "paFiscalCode",
+          "snapshotAt",
+          "projectionRevision",
+          "window",
+          "counts",
+          "logicalStates",
+          "attemptStates",
+          "unresolved",
+          "matrices",
+          "traffic",
+          "transitions",
+          "durations",
+          "anomalies",
+          "freshness",
+          "recipientStates"
+        ]
+      },
+      "CreditorRow": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "paFiscalCode": {
+            "$ref": "#/components/schemas/PaFiscalCode"
+          },
+          "startedAttempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "payments": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["payments", "attempts"]
+          },
+          "logicalStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogicalStateCount"
+            }
+          },
+          "unresolved": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "payments": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["payments", "attempts"]
+          }
+        },
+        "required": ["paFiscalCode", "startedAttempts", "counts", "logicalStates", "unresolved"]
+      },
+      "StationRow": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "stazione": {
+            "type": ["string", "null"],
+            "description": "null = stazione non disponibile"
+          },
+          "traffic": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrafficBucket"
+            }
+          },
+          "startedAttempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "logicalStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogicalStateCount"
+            }
+          },
+          "attemptStates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttemptStateCount"
+            }
+          },
+          "unresolved": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "payments": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["payments", "attempts"]
+          }
+        },
+        "required": [
+          "stazione",
+          "traffic",
+          "startedAttempts",
+          "logicalStates",
+          "attemptStates",
+          "unresolved"
+        ]
+      },
+      "CreditorPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreditorRow"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "pattern": "^[A-Za-z0-9_-]{32}$",
+            "description": "Cursore opaco, TTL 5 minuti."
+          },
+          "snapshotRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Revisione aggregata; ogni suo cambiamento invalida i cursori (410)."
+          }
+        },
+        "required": ["items", "nextCursor", "snapshotRevision"]
+      },
+      "StationPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StationRow"
+            }
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "pattern": "^[A-Za-z0-9_-]{32}$",
+            "description": "Cursore opaco, TTL 5 minuti."
+          },
+          "snapshotRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Revisione aggregata; ogni suo cambiamento invalida i cursori (410)."
+          }
+        },
+        "required": ["items", "nextCursor", "snapshotRevision"]
+      },
+      "Health": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "const": "ok"
+          },
+          "mode": {
+            "const": "synthetic-local-mock"
+          }
+        },
+        "required": ["status", "mode"]
+      },
+      "MockControlRequest": {
+        "description": "Corpo JSON (Content-Type application/json, max 4096 byte). Nessuna proprietà non elencata per l'azione; nessun valore di default: tutti i campi indicati sono obbligatori.",
+        "oneOf": [
+          { "$ref": "#/components/schemas/ReEventsAction" },
+          {
+            "$ref": "#/components/schemas/ResolveAction"
+          },
+          {
+            "$ref": "#/components/schemas/GapAction"
+          },
+          {
+            "$ref": "#/components/schemas/ScenarioAction"
+          },
+          {
+            "$ref": "#/components/schemas/CreateAttemptAction"
+          },
+          {
+            "$ref": "#/components/schemas/CompleteDimensionsAction"
+          },
+          {
+            "$ref": "#/components/schemas/CorrectTimestampsAction"
+          },
+          {
+            "$ref": "#/components/schemas/DuplicateAction"
+          },
+          {
+            "$ref": "#/components/schemas/AdvanceClockAction"
+          },
+          {
+            "$ref": "#/components/schemas/EmptyAction"
+          },
+          {
+            "$ref": "#/components/schemas/FailureAction"
+          },
+          {
+            "$ref": "#/components/schemas/DelayAction"
+          },
+          {
+            "$ref": "#/components/schemas/AuditFailureAction"
+          },
+          {
+            "$ref": "#/components/schemas/ExpireReplayAction"
+          },
+          {
+            "$ref": "#/components/schemas/FreshnessAction"
+          },
+          {
+            "$ref": "#/components/schemas/CheckDbAction"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "action"
+        }
+      },
+      "ReEventsAction": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "action": { "const": "reEvents" },
+          "scenario": { "enum": ["success", "empty", "error", "limit", "unconfigured", "timeout", "throttled"] }
+        },
+        "required": ["action", "scenario"]
+      },
+      "ResolveAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "resolve"
+          },
+          "attemptId": {
+            "type": "string",
+            "description": "Attempt con stato PAYMENT_UNKNOWN o PAYMENT_SEND_ERROR (altrimenti 400); sconosciuto/non visibile 404."
+          }
+        },
+        "required": ["action", "attemptId"],
+        "description": "Richiede pagamento logico PAYING. PAYMENT_UNKNOWN diventa PAID (pagamento logico PAID, trigger sintetico sendPaymentOutcome); PAYMENT_SEND_ERROR diventa CANCELLED (pagamento logico INSERTED, trigger sendPaymentResult-v2). Pubblica un delta. Per scegliere un altro percorso esplicito usare scenario."
+      },
+      "ScenarioAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "scenario"
+          },
+          "attemptId": {
+            "type": "string"
+          },
+          "scenario": {
+            "type": "string",
+            "enum": [
+              "nm3OutcomeOk",
+              "nm3OutcomeKo",
+              "closeOk",
+              "closeKo",
+              "closeInvalid",
+              "pspSend",
+              "pspAccepted",
+              "pspRefused",
+              "pspUnknown",
+              "pspSendError",
+              "outcomeOk",
+              "resultKo",
+              "expireUnknown",
+              "generateReceipt",
+              "sendReceipt",
+              "primaryResponse",
+              "completeReceipt",
+              "receiptTimeout",
+              "retryReceipt",
+              "retryResult",
+              "legacyOutcomeOkNoRpt",
+              "legacyPaidComplete",
+              "legacyGenerateReceipt",
+              "legacyStoreReceipt",
+              "outcomeStoreReceipt"
+            ]
+          }
+        },
+        "required": ["action", "attemptId", "scenario"],
+        "description": "Scenari mock-only con precondizioni sul tentativo, posizione e destinatari. Timeout e retry cambiano solo i destinatari; retryResult resta un no-op. primaryResponse attesta la risposta intestataria; completeReceipt attesta tutte le risposte senza dedurle dal set client. Posizione promossa a NOTIFIED solo se PAID, mai da NOTICE_STORED. outcomeStoreReceipt archivia durante outcome con RPT, distinto da RPT tardiva; invio da NOTICE_STORED non abilitato senza conferma Nodo."
+      },
+      "GapAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "gap"
+          },
+          "attemptId": {
+            "type": "string"
+          }
+        },
+        "required": ["action", "attemptId"],
+        "description": "Come resolve, ma il delta payment viene soppresso e viene pubblicata una seconda revisione con timelineIncomplete=true: i subscriber payment vedono un salto di revisione."
+      },
+      "CreateAttemptAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "createAttempt"
+          },
+          "paFiscalCode": {
+            "$ref": "#/components/schemas/PaFiscalCode"
+          },
+          "noticeNumber": {
+            "$ref": "#/components/schemas/NoticeNumber"
+          }
+        },
+        "required": ["action", "paFiscalCode", "noticeNumber"],
+        "description": "Crea il prossimo tentativo con identificativo deterministico solo su un pagamento logico INSERTED (altrimenti 400; pagamento sconosciuto 404). Fixture iniziale: 00000000001/300000000000000003. Metadati completi, attemptStartedAt=clock() con base SOURCE_EVENT e timeline iniziale PAYING; il pagamento passa a PAYING. Pubblica un upsert Attempt completo e la transizione logica. tokenDisplay riporta il paymentToken in chiaro."
+      },
+      "CompleteDimensionsAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "completeDimensions"
+          },
+          "attemptId": {
+            "type": "string"
+          }
+        },
+        "required": ["action", "attemptId"],
+        "description": "Completa solo psp, stazione e canale mancanti con valori sintetici deterministici; non sovrascrive valori presenti. Pubblica una patch sparsa senza transizioni. Tentativo sconosciuto 404; se non cambia nulla (anche ripetendo l'azione), no-op senza nuova revisione né delta."
+      },
+      "CorrectTimestampsAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "correctTimestamps"
+          },
+          "attemptId": {
+            "type": "string"
+          }
+        },
+        "required": ["action", "attemptId"],
+        "description": "Corregge avvio e transizioni con base INFERRED/ANOMALY a SOURCE_EVENT: source=firstSeenAt originario meno 60000 ms, attemptStartedAt=source, transizione di indice i=source+i*60000 ms. Le date già SOURCE_EVENT restano invariate. Non cambia stati né ordine e non riapplica transizioni. Azzera timelineIncomplete del tentativo e ricalcola quello del pagamento dai tentativi rimasti. Per le fixture 7/8 corregge anche la prima transizione logica, inizialmente rispettivamente INFERRED/ANOMALY, usando source. Pubblica patch, transitionCorrections e logicalTransitionCorrections, non append. Tentativo sconosciuto 404; ripetizioni senza modifiche sono no-op senza nuova revisione né delta. firstSeenAt è tecnico e non esposto."
+      },
+      "DuplicateAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "duplicate"
+          }
+        },
+        "required": ["action"],
+        "description": "Riscrive l'ultimo evento (stesso id) a ogni client SSE che ne ha già ricevuto uno."
+      },
+      "AdvanceClockAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "advanceClock"
+          },
+          "milliseconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 31536000000
+          }
+        },
+        "required": ["action", "milliseconds"],
+        "description": "Avanza l'orologio del mock (max 365 giorni) ed elimina i tentativi oltre la retention di 60 giorni, pubblicando le rimozioni."
+      },
+      "EmptyAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "empty"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": ["action", "enabled"],
+        "description": "enabled=true: tutte le letture risultano vuote e viene pubblicata la cancellazione (deleted=true). false: ripristina senza GET tramite deleted=false, logicalTransitions con l'intera timeline logica, timelineIncomplete esplicito e upsert Attempt completi per tutti i tentativi, ciascuno con transitions=[]. Il client ricostruisce il dettaglio precedentemente eliminato. Se enabled è già impostato, no-op senza nuova revisione né delta."
+      },
+      "FailureAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "failure"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": ["action", "enabled"],
+        "description": "enabled=true: ogni /api/* risponde 500 MOCK_FAILURE (non /health né /__mock/*)."
+      },
+      "DelayAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "delay"
+          },
+          "milliseconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2000
+          }
+        },
+        "required": ["action", "milliseconds"],
+        "description": "Ritardo applicato a ogni /api/* (non /__mock/*)."
+      },
+      "AuditFailureAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "auditFailure"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": ["action", "enabled"],
+        "description": "enabled=true: reveal e token-lookup rispondono 500 AUDIT_UNAVAILABLE."
+      },
+      "ExpireReplayAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "expireReplay"
+          }
+        },
+        "required": ["action"],
+        "description": "Svuota storico replay e cursori SSE: Last-Event-ID precedenti danno 410."
+      },
+      "FreshnessAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "freshness"
+          },
+          "status": {
+            "enum": ["CURRENT", "DELAYED", "GAP"]
+          },
+          "lagSeconds": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "gapsDetected": {
+            "type": "boolean"
+          }
+        },
+        "required": ["action", "status", "lagSeconds", "gapsDetected"],
+        "description": "Imposta la freschezza e pubblica un aggregate.delta senza variazioni."
+      },
+      "CheckDbAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": { "const": "checkDb" },
+          "scenario": { "enum": ["match", "mismatch", "missing", "unconfigured", "unavailable"] }
+        },
+        "required": ["action", "scenario"]
+      },
+      "MockControlResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "resolve",
+              "gap",
+              "scenario",
+              "createAttempt",
+              "completeDimensions",
+              "correctTimestamps",
+              "duplicate",
+              "advanceClock",
+              "empty",
+              "failure",
+              "delay",
+              "auditFailure",
+              "expireReplay",
+              "freshness",
+              "checkDb",
+              "reEvents"
+            ]
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "now": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          }
+        },
+        "required": ["action", "projectionRevision", "now"]
+      },
+      "MockAudit": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "actorId": {
+                  "type": "string"
+                },
+                "action": {
+                  "enum": ["TOKEN_LOOKUP", "TOKEN_REVEAL"]
+                },
+                "attemptId": {
+                  "type": ["string", "null"],
+                  "description": "null per lookup senza esito."
+                },
+                "recordedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+                }
+              },
+              "required": ["actorId", "action", "attemptId", "recordedAt"]
+            }
+          }
+        },
+        "required": ["items"],
+        "description": "Mai il paymentToken."
+      },
+      "EventScope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "const": "payment-list"
+              },
+              "keys": {
+                "type": "string",
+                "minLength": 30,
+                "maxLength": 3099,
+                "pattern": "^[0-9]{11}:[0-9]{18}(,[0-9]{11}:[0-9]{18}){0,99}$"
+              }
+            },
+            "required": ["scope", "keys"],
+            "description": "Lista di chiavi PA:NAV normalizzata in ordine lessicografico; massimo 100."
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "const": "creditor-list"
+              },
+              "keys": {
+                "type": "string",
+                "minLength": 11,
+                "maxLength": 1199,
+                "pattern": "^[0-9]{11}(,[0-9]{11}){0,99}$"
+              }
+            },
+            "required": ["scope", "keys"],
+            "description": "Lista di codici PA normalizzata in ordine lessicografico; massimo 100."
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "const": "overview"
+              },
+              "paFiscalCode": {
+                "$ref": "#/components/schemas/PaFiscalCode"
+              },
+              "stazione": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "noticeNumber": {
+                "$ref": "#/components/schemas/NoticeNumber"
+              },
+              "logicalState": {
+                "$ref": "#/components/schemas/LogicalState"
+              },
+              "attemptState": {
+                "$ref": "#/components/schemas/AttemptState"
+              },
+              "serviceIdentifier": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "psp": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "canale": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "anomaliesOnly": {
+                "enum": ["true", "false"]
+              },
+              "unresolvedOnly": {
+                "enum": ["true", "false"]
+              },
+              "from": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+              },
+              "to": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+              },
+              "live": {
+                "enum": ["true", "false"]
+              }
+            },
+            "required": ["scope"],
+            "description": "Overview: filtri REST opzionali. `stazione` richiede `paFiscalCode`."
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "const": "creditor"
+              },
+              "paFiscalCode": {
+                "$ref": "#/components/schemas/PaFiscalCode"
+              },
+              "noticeNumber": {
+                "$ref": "#/components/schemas/NoticeNumber"
+              },
+              "logicalState": {
+                "$ref": "#/components/schemas/LogicalState"
+              },
+              "attemptState": {
+                "$ref": "#/components/schemas/AttemptState"
+              },
+              "serviceIdentifier": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "psp": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "canale": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "anomaliesOnly": {
+                "enum": ["true", "false"]
+              },
+              "unresolvedOnly": {
+                "enum": ["true", "false"]
+              },
+              "from": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+              },
+              "to": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+              }
+            },
+            "required": ["scope", "paFiscalCode"]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "const": "station"
+              },
+              "paFiscalCode": {
+                "$ref": "#/components/schemas/PaFiscalCode"
+              },
+              "stazione": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "noticeNumber": {
+                "$ref": "#/components/schemas/NoticeNumber"
+              },
+              "logicalState": {
+                "$ref": "#/components/schemas/LogicalState"
+              },
+              "attemptState": {
+                "$ref": "#/components/schemas/AttemptState"
+              },
+              "serviceIdentifier": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "psp": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "canale": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "anomaliesOnly": {
+                "enum": ["true", "false"]
+              },
+              "unresolvedOnly": {
+                "enum": ["true", "false"]
+              },
+              "from": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+              },
+              "to": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+              }
+            },
+            "required": ["scope", "paFiscalCode", "stazione"]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "const": "payment"
+              },
+              "paFiscalCode": {
+                "$ref": "#/components/schemas/PaFiscalCode"
+              },
+              "noticeNumber": {
+                "$ref": "#/components/schemas/NoticeNumber"
+              }
+            },
+            "required": ["scope", "paFiscalCode", "noticeNumber"]
+          }
+        ],
+        "description": "Oggetto query normalizzato dello stream (chiavi ordinate), riportato in ogni evento. Gli scope aggregati accettano gli stessi filtri REST e `from`/`to` (solo se forniti dal client). Combinazioni non supportate (più di una dimensione tra serviceIdentifier/psp/canale/stazione, `stazione` senza `paFiscalCode`) sono rifiutate con 422 e non sono eventi validi; `creditor` non ammette `stazione`; `payment`, `payment-list` e `creditor-list` ammettono solo le chiavi previste."
+      },
+      "ReadyEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "ready"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/EventScope"
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Revisione del pagamento (scope payment) o della proiezione REST (altri scope), usata per la sincronizzazione dello snapshot."
+          },
+          "window": {
+            "$ref": "#/components/schemas/Window",
+            "description": "Solo scope aggregati: finestra fissata all'apertura dello stream (default ultima ora; riconnessione: quella memorizzata nel cursore). Assente per scope payment."
+          }
+        },
+        "required": ["type", "scope", "projectionRevision"],
+        "description": "Evento SSE `ready`. Dopo un replay con Last-Event-ID arriva dopo gli eventi riprodotti. Per gli scope aggregati include `window`; per `payment` e scope list non la include. Schema strict."
+      },
+      "ListChangedEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "list.changed"
+          },
+          "scope": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "scope": {
+                    "const": "payment-list"
+                  },
+                  "keys": {
+                    "type": "string",
+                    "minLength": 30,
+                    "maxLength": 3099,
+                    "pattern": "^[0-9]{11}:[0-9]{18}(,[0-9]{11}:[0-9]{18}){0,99}$"
+                  }
+                },
+                "required": ["scope", "keys"]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "scope": {
+                    "const": "creditor-list"
+                  },
+                  "keys": {
+                    "type": "string",
+                    "minLength": 11,
+                    "maxLength": 1199,
+                    "pattern": "^[0-9]{11}(,[0-9]{11}){0,99}$"
+                  }
+                },
+                "required": ["scope", "keys"]
+              }
+            ]
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": ["type", "scope", "projectionRevision"],
+        "description": "Invalidazione senza payload per una pagina visibile; la lista viene riletta dalla UI solo su azione esplicita dell'operatore."
+      },
+      "AttemptPatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "serviceIdentifier": {
+            "type": ["string", "null"]
+          },
+          "psp": {
+            "type": ["string", "null"]
+          },
+          "stazione": {
+            "type": ["string", "null"]
+          },
+          "canale": {
+            "type": ["string", "null"]
+          },
+          "attemptStartedAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "startTimestampBasis": {
+            "$ref": "#/components/schemas/TimestampBasis"
+          },
+          "timelineIncomplete": {
+            "type": "boolean"
+          }
+        },
+        "dependentRequired": {
+          "attemptStartedAt": ["startTimestampBasis"],
+          "startTimestampBasis": ["attemptStartedAt"]
+        },
+        "description": "Patch strettamente sparsa di un tentativo esistente: proprietà omesse invariate, null indica esplicitamente un dato non disponibile. attemptStartedAt e startTimestampBasis devono comparire insieme. timelineIncomplete è esplicito e non si deduce dall'assenza di anomalie."
+      },
+      "AttemptTransitionCorrection": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "transition": {
+            "$ref": "#/components/schemas/AttemptTimelineItem"
+          }
+        },
+        "required": ["index", "transition"],
+        "description": "Sostituisce un elemento già esistente della timeline del tentativo, conservandone state. Indice zero-based stabile per tutta la vita dell'entità, valutato prima degli append; nessun inserimento, riordino o rimozione di elementi. La sola rimozione ammessa è quella dell'intero tentativo per retention. Un indice non può essere corretto due volte nello stesso delta."
+      },
+      "LogicalTransitionCorrection": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "transition": {
+            "$ref": "#/components/schemas/LogicalTimelineItem"
+          }
+        },
+        "required": ["index", "transition"],
+        "description": "Sostituisce un elemento già esistente della timeline logica, conservandone state. Indice zero-based stabile per tutta la vita del pagamento, valutato prima degli append; nessun inserimento, riordino o rimozione di elementi. Un indice non può essere corretto due volte nello stesso delta."
+      },
+      "PaymentDelta": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "payment.delta"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/EventScope"
+          },
+          "paFiscalCode": {
+            "$ref": "#/components/schemas/PaFiscalCode"
+          },
+          "noticeNumber": {
+            "$ref": "#/components/schemas/NoticeNumber"
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Revisione del pagamento; un salto > +1 impone riallineamento."
+          },
+          "changes": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "logicalTransitions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/LogicalTimelineItem"
+                },
+                "description": "Transizioni da appendere dopo le correzioni, mai riordinate per timestamp. Nel ripristino empty=false contiene l'intera timeline logica e viene applicata alla timeline locale vuota dopo deleted=true."
+              },
+              "logicalTransitionCorrections": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/components/schemas/LogicalTransitionCorrection"
+                },
+                "description": "Correzioni in posizione prima degli append logici; indici distinti e già esistenti, anche quando i payload sono diversi."
+              },
+              "attemptChanges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "attemptId": {
+                      "type": "string"
+                    },
+                    "transitions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AttemptTimelineItem"
+                      }
+                    },
+                    "warning": {
+                      "type": "boolean",
+                      "description": "Warning risultante del tentativo, mantenuto per compatibilità; il client lo deriva comunque dallo stato finale."
+                    },
+                    "upsert": {
+                      "$ref": "#/components/schemas/Attempt",
+                      "description": "Oggetto REST safeAttempt completo, senza paymentToken/firstSeenAt/expiresAt. attemptId e coppia PA/NAV devono corrispondere all'entry e al delta. Se sconosciuto, appende il tentativo alla lista; se noto, lo sostituisce integralmente NELLA STESSA POSIZIONE senza merge. Include l'intera timeline, mantenendo identità/ordine degli indici esistenti: transitions deve essere [] e patch/transitionCorrections devono essere assenti."
+                    },
+                    "patch": {
+                      "$ref": "#/components/schemas/AttemptPatch"
+                    },
+                    "transitionCorrections": {
+                      "type": "array",
+                      "uniqueItems": true,
+                      "items": {
+                        "$ref": "#/components/schemas/AttemptTransitionCorrection"
+                      },
+                      "description": "Correzioni della timeline esistente prima degli append; indici distinti anche con payload diversi. Senza upsert il tentativo deve essere già noto."
+                    }
+                  },
+                  "if": {
+                    "required": ["upsert"]
+                  },
+                  "then": {
+                    "properties": {
+                      "transitions": {
+                        "maxItems": 0
+                      }
+                    },
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": ["patch"]
+                        },
+                        {
+                          "required": ["transitionCorrections"]
+                        }
+                      ]
+                    }
+                  },
+                  "required": ["attemptId", "transitions", "warning"]
+                },
+                "description": "Una sola entry per attemptId. Senza upsert aggiorna un tentativo noto tramite patch/correzioni opzionali, poi appende transitions. Proprietà opzionali omesse lasciano invariati i dati."
+              },
+              "removedAttemptIds": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string"
+                },
+                "description": "Rimozioni di interi tentativi per retention, da applicare prima di upsert/patch/correzioni e append."
+              },
+              "deleted": {
+                "type": "boolean",
+                "description": "true elimina il dettaglio locale (timeline logica e tentativi). false consente il ripristino; empty=false fornisce timeline logica completa, timelineIncomplete e tutti gli upsert necessari senza GET."
+              },
+              "timelineIncomplete": {
+                "type": "boolean",
+                "description": "Valore esplicito del pagamento; omesso significa invariato. Non dedurlo dall'assenza di transizioni ANOMALY."
+              },
+              "recipientChanges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "recipientId": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "transitions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RecipientTimelineItem"
+                      }
+                    },
+                    "upsert": {
+                      "$ref": "#/components/schemas/Recipient"
+                    },
+                    "patch": {
+                      "$ref": "#/components/schemas/RecipientPatch"
+                    },
+                    "transitionCorrections": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RecipientTransitionCorrection"
+                      },
+                      "uniqueItems": true
+                    }
+                  },
+                  "required": ["recipientId", "transitions"],
+                  "if": {
+                    "required": ["upsert"]
+                  },
+                  "then": {
+                    "properties": {
+                      "transitions": {
+                        "maxItems": 0
+                      }
+                    },
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": ["patch"]
+                        },
+                        {
+                          "required": ["transitionCorrections"]
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "removedRecipientIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true
+              }
+            },
+            "required": ["logicalTransitions", "attemptChanges", "removedAttemptIds", "deleted"]
+          }
+        },
+        "required": [
+          "type",
+          "scope",
+          "paFiscalCode",
+          "noticeNumber",
+          "projectionRevision",
+          "changes"
+        ],
+        "description": "Evento SSE payment.delta (solo scope payment), strict; tokenDisplay degli upsert contiene il token in chiaro secondo la policy corrente, mai paymentToken/firstSeenAt/expiresAt. Scartare revisioni duplicate; un salto richiede resync mirato. Applicare rimozioni, upsert completi o patch/correzioni a indici stabili prima degli append. Entry distinte per attemptId/recipientId, correzioni a stato invariato e indici distinti; nessun riordino per timestamp. deleted elimina il dettaglio; il ripristino richiede timeline logica e tutti gli upsert. State proviene dall'ultima transizione della rispettiva entita; la posizione non e dedotta dai token/destinatari. Warning solo PAYMENT_UNKNOWN/PAYMENT_SEND_ERROR nei tentativi, warning pagamento se almeno uno disponibile e non risolto. hasAnomaly include le tre entita. Impostare projectionRevision su pagamento e tutti i tentativi/destinatari rimasti, anche invariati. timelineIncomplete e esplicito. recipientChanges/removedRecipientIds possono cambiare senza transizioni di posizione/tentativo; recipients obbligatorio negli snapshot, senza fallback per contratto mancante."
+      },
+      "AggregateDelta": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "aggregate.delta"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/EventScope"
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Revisione aggregata."
+          },
+          "changes": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "counts": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "payments": {
+                    "type": "integer",
+                    "description": "Differenza con segno (dopo meno prima)."
+                  },
+                  "attempts": {
+                    "type": "integer",
+                    "description": "Differenza con segno (dopo meno prima)."
+                  },
+                  "unresolvedPayments": {
+                    "type": "integer",
+                    "description": "Differenza con segno (dopo meno prima)."
+                  },
+                  "unresolvedAttempts": {
+                    "type": "integer",
+                    "description": "Differenza con segno (dopo meno prima)."
+                  },
+                  "anomalyTransitions": {
+                    "type": "integer",
+                    "description": "Differenza con segno (dopo meno prima)."
+                  }
+                },
+                "required": [
+                  "payments",
+                  "attempts",
+                  "unresolvedPayments",
+                  "unresolvedAttempts",
+                  "anomalyTransitions"
+                ]
+              },
+              "logicalStates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "$ref": "#/components/schemas/LogicalState"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "description": "Differenza con segno (dopo meno prima)."
+                    }
+                  },
+                  "required": ["state", "count"]
+                }
+              },
+              "attemptStates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "$ref": "#/components/schemas/AttemptState"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "description": "Differenza con segno (dopo meno prima)."
+                    }
+                  },
+                  "required": ["state", "count"]
+                }
+              },
+              "traffic": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "bucketStart": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+                    },
+                    "startedAttempts": {
+                      "type": "integer",
+                      "description": "Differenza con segno (dopo meno prima)."
+                    },
+                    "estimatedStarts": {
+                      "type": "integer",
+                      "description": "Differenza con segno (dopo meno prima)."
+                    }
+                  },
+                  "required": ["bucketStart", "startedAttempts", "estimatedStarts"]
+                }
+              },
+              "transitions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "bucketStart": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+                    },
+                    "entity": {
+                      "enum": ["logical", "attempt", "recipient"]
+                    },
+                    "state": {
+                      "type": "string"
+                    },
+                    "timestampBasis": {
+                      "type": "string",
+                      "enum": ["SOURCE_EVENT", "INFERRED"]
+                    },
+                    "count": {
+                      "type": "integer",
+                      "description": "Differenza con segno (dopo meno prima)."
+                    }
+                  },
+                  "required": ["bucketStart", "entity", "state", "timestampBasis", "count"]
+                }
+              },
+              "matrices": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "psp": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "value": {
+                          "type": ["string", "null"]
+                        },
+                        "state": {
+                          "$ref": "#/components/schemas/AttemptState"
+                        },
+                        "count": {
+                          "type": "integer",
+                          "description": "Differenza con segno (dopo meno prima)."
+                        }
+                      },
+                      "required": ["value", "state", "count"]
+                    }
+                  },
+                  "canale": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "value": {
+                          "type": ["string", "null"]
+                        },
+                        "state": {
+                          "$ref": "#/components/schemas/AttemptState"
+                        },
+                        "count": {
+                          "type": "integer",
+                          "description": "Differenza con segno (dopo meno prima)."
+                        }
+                      },
+                      "required": ["value", "state", "count"]
+                    }
+                  },
+                  "recipient": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "value": {
+                          "type": ["string", "null"]
+                        },
+                        "state": {
+                          "$ref": "#/components/schemas/RecipientState"
+                        },
+                        "count": {
+                          "type": "integer",
+                          "description": "Differenza con segno (dopo meno prima)."
+                        }
+                      },
+                      "required": ["value", "state", "count"]
+                    }
+                  }
+                },
+                "required": ["psp", "canale", "recipient"]
+              },
+              "anomalies": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "transitions": {
+                    "type": "integer",
+                    "description": "Differenza con segno (dopo meno prima)."
+                  },
+                  "payments": {
+                    "type": "integer",
+                    "description": "Differenza con segno (dopo meno prima)."
+                  }
+                },
+                "required": ["transitions", "payments"]
+              },
+              "durations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "entity": {
+                      "enum": ["logical", "attempt", "recipient"]
+                    },
+                    "fromState": {
+                      "type": "string"
+                    },
+                    "toState": {
+                      "type": "string"
+                    },
+                    "timestampBasis": {
+                      "type": "string",
+                      "enum": ["SOURCE_EVENT", "INFERRED"]
+                    },
+                    "samples": {
+                      "type": "integer",
+                      "description": "Differenza con segno (dopo meno prima)."
+                    },
+                    "totalMs": {
+                      "type": "number",
+                      "description": "Differenza con segno della somma delle durate (ms)."
+                    }
+                  },
+                  "required": [
+                    "entity",
+                    "fromState",
+                    "toState",
+                    "timestampBasis",
+                    "samples",
+                    "totalMs"
+                  ]
+                },
+                "description": "Solo differenze additive di samples e totalMs; i quantili non si sommano."
+              },
+              "durationSnapshot": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DurationRow"
+                },
+                "description": "Sostituzione completa e autorevole delle durate per lo scope, i filtri e la finestra fissa del delta; array vuoto azzera i risultati."
+              },
+              "recipientStates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "state": {
+                      "$ref": "#/components/schemas/RecipientState"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "description": "Differenza con segno (dopo meno prima)."
+                    }
+                  },
+                  "required": ["state", "count"]
+                }
+              },
+              "primitives": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "serviceIdentifier": {
+                      "type": ["string", "null"]
+                    },
+                    "primitive": {
+                      "type": "string"
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": ["INBOUND", "OUTBOUND", "UNKNOWN"]
+                    },
+                    "requests": {
+                      "type": "integer",
+                      "description": "Differenza con segno (dopo meno prima)."
+                    },
+                    "responses": {
+                      "type": "integer",
+                      "description": "Differenza con segno (dopo meno prima)."
+                    },
+                    "warnings": {
+                      "type": "integer",
+                      "description": "Differenza con segno (dopo meno prima)."
+                    }
+                  },
+                  "required": ["serviceIdentifier", "primitive", "direction", "requests", "responses", "warnings"]
+                }
+              }
+            },
+            "required": [
+              "counts",
+              "logicalStates",
+              "attemptStates",
+              "traffic",
+              "transitions",
+              "matrices",
+              "anomalies",
+              "durations",
+              "durationSnapshot",
+              "recipientStates",
+              "primitives"
+            ],
+            "description": "Solo differenze non nulle, calcolate sulla finestra fissa [from,to) dello stream (`ready.window`), non su una finestra mobile. Il client applica traffic/transitions/durations solo ai bucket/righe che mostra."
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/Freshness"
+          }
+        },
+        "required": ["type", "scope", "projectionRevision", "changes", "freshness"],
+        "description": "Evento SSE `aggregate.delta` (scope overview, creditor, station), filtrato come lo scope. Può avere changes vuoti. Schema strict."
+      },
+      "Error400": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "INVALID_REQUEST"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["code", "message"]
+      },
+      "Error401": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "UNAUTHENTICATED"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["code", "message"]
+      },
+      "Error403": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "FORBIDDEN"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["code", "message"]
+      },
+      "Error404": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "NOT_FOUND"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["code", "message"]
+      },
+      "Error410": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": ["CURSOR_EXPIRED", "SSE_CURSOR_EXPIRED"]
+          },
+          "message": {
+            "type": "string"
+          },
+          "resync": {
+            "const": true
+          }
+        },
+        "required": ["code", "message"]
+      },
+      "Error422": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "UNSUPPORTED_AGGREGATION"
+          },
+          "message": {
+            "type": "string"
+          },
+          "fallback": {
+            "const": "/api/attempts"
+          }
+        },
+        "required": ["code", "message", "fallback"]
+      },
+      "Maintenances": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "fetchedAt": { "type": "string", "format": "date-time", "description": "Ultimo caricamento riuscito dal servizio apiconfig." },
+          "windowFrom": { "type": "string", "format": "date-time" },
+          "windowTo": { "type": "string", "format": "date-time", "description": "windowFrom + 7 giorni." },
+          "stale": { "type": "boolean", "description": "true se l'ultimo ricaricamento è fallito e i dati sono quelli precedenti." },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Maintenance" } }
+        },
+        "required": ["fetchedAt", "windowFrom", "windowTo", "stale", "items"]
+      },
+      "Maintenance": {
+        "type": "object", "additionalProperties": false,
+        "properties": {
+          "brokerCode": { "type": "string" },
+          "brokerName": { "type": "string" },
+          "startDateTime": { "type": "string", "format": "date-time" },
+          "endDateTime": { "type": "string", "format": "date-time" },
+          "stations": { "type": "array", "items": { "type": "string" } },
+          "creditorInstitutions": { "type": "array", "items": {
+            "type": "object", "additionalProperties": false,
+            "properties": { "businessName": { "type": "string" }, "code": { "type": "string" } },
+            "required": ["businessName", "code"] } }
+        },
+        "required": ["brokerCode", "brokerName", "startDateTime", "endDateTime", "stations", "creditorInstitutions"]
+      },
+      "Error500": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": ["MOCK_FAILURE", "AUDIT_UNAVAILABLE", "INTERNAL_ERROR"]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["code", "message"]
+      },
+      "RecipientState": {
+        "type": "string",
+        "enum": ["NOTICE_GENERATED", "NOTICE_SENT", "NOTICE_PENDING", "NOTIFIED"]
+      },
+      "RecipientTimelineItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/RecipientState"
+          },
+          "transitionAt": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
+          },
+          "timestampBasis": {
+            "$ref": "#/components/schemas/TimestampBasis"
+          },
+          "trigger": {
+            "type": ["string", "null"],
+            "description": "Provenienza applicativa del cambio stato, se nota; può differire dalla chiamata di trasporto immediata e non è dedotta dal solo stato finale."
+          }
+        },
+        "required": ["state", "transitionAt", "timestampBasis"],
+        "if": {
+          "properties": {
+            "timestampBasis": {
+              "const": "ANOMALY"
+            }
+          },
+          "required": ["timestampBasis"]
+        },
+        "then": {
+          "properties": {
+            "transitionAt": {
+              "type": "null"
+            }
+          }
+        },
+        "else": {
+          "properties": {
+            "transitionAt": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Recipient": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "recipientId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "stazioneRecipient": {
+            "type": ["string", "null"]
+          },
+          "paFiscalCode": {
+            "$ref": "#/components/schemas/PaFiscalCode"
+          },
+          "noticeNumber": {
+            "$ref": "#/components/schemas/NoticeNumber"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RecipientState"
+          },
+          "timelineIncomplete": {
+            "type": "boolean"
+          },
+          "hasAnomaly": {
+            "type": "boolean"
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipientTimelineItem"
+            },
+            "minItems": 1
+          },
+          "projectionRevision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "recipientId",
+          "stazioneRecipient",
+          "paFiscalCode",
+          "noticeNumber",
+          "state",
+          "timelineIncomplete",
+          "hasAnomaly",
+          "timeline",
+          "projectionRevision"
+        ],
+        "description": "Destinatario per PA/NAV e stazione destinatario; nessuna relazione al token, ruolo intestatario o completezza del set deducibili. Array vuoto indica nessun record disponibile in retention, mai supporto mancante. Retention autonoma a 60 giorni, senza proroghe, con rimozione quando il pagamento non ha piu tentativi mantenuti."
+      },
+      "RecipientStateCount": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/RecipientState"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["state", "count"]
+      },
+      "RecipientDimensionRow": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "type": ["string", "null"],
+            "description": "null = dimensione non disponibile"
+          },
+          "states": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipientStateCount"
+            }
+          }
+        },
+        "required": ["value", "states"]
+      },
+      "RecipientPatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "stazioneRecipient": {
+            "type": ["string", "null"]
+          },
+          "timelineIncomplete": {
+            "type": "boolean"
+          }
+        },
+        "required": [],
+        "minProperties": 1
+      },
+      "RecipientTransitionCorrection": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "transition": {
+            "$ref": "#/components/schemas/RecipientTimelineItem"
+          }
+        },
+        "required": ["index", "transition"],
+        "description": "Correzione in posizione a stato invariato nella timeline del destinatario; indici stabili e distinti, prima degli append."
+      }
+    }
+  }
+}

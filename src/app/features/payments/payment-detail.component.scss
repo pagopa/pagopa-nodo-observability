@@ -1,0 +1,79 @@
+.payment-status-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  text-align: right;
+}
+
+.payment-status-chips {
+  justify-content: flex-end;
+}
+
+.attempt-title {
+  font-size: 16px;
+}
+
+.attempt-warning {
+  margin-top: 12px;
+}
+
+.attempt-incomplete {
+  margin-block-start: var(--space-6);
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--payment-flow-min-column-width)), 1fr)
+  );
+  align-items: stretch;
+  gap: var(--space-3);
+  overflow-x: visible;
+}
+
+.flow > .ln {
+  display: none;
+}
+
+.stage,
+.node {
+  min-width: 0;
+}
+
+.node {
+  width: auto;
+  height: 100%;
+  overflow-wrap: anywhere;
+}
+
+.tok-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.tok-label {
+  color: var(--muted);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+}
+
+.attempt .meta {
+  padding-block: var(--space-3);
+  border-block: 1px solid var(--line);
+}
+
+.position-state {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-block-end: var(--space-3);
+}
+
+.position-state h2 {
+  margin: 0;
+}

@@ -1,0 +1,46 @@
+<div class="warnings" role="group" [attr.aria-label]="'Chiamate senza risposta entro ' + budgetSeconds + ' s per ' + primitive()">
+  @if (items().length > 0) {
+    <div class="scroll">
+      <table class="tbl warnings-table">
+        <caption class="sr-only">Chiamate di {{ primitive() }} senza risposta entro {{ budgetSeconds }} s, dalla più recente</caption>
+        <thead>
+          <tr>
+            <th scope="col">Data-ora chiamata</th>
+            <th scope="col">PSP</th>
+            <th scope="col">Canale</th>
+            <th scope="col">Ente</th>
+            <th scope="col">Stazione</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track $index) {
+            <tr>
+              <td class="warnings-time">{{ format(item.calledAt) }}</td>
+              <td [class.mono]="item.psp !== null" [class.not-available]="item.psp === null">{{ item.psp ?? 'Non disponibile' }}</td>
+              <td [class.mono]="item.canale !== null" [class.not-available]="item.canale === null">{{ item.canale ?? 'Non disponibile' }}</td>
+              <td [class.mono]="item.paFiscalCode !== null" [class.not-available]="item.paFiscalCode === null">{{ item.paFiscalCode ?? 'Non disponibile' }}</td>
+              <td [class.mono]="item.stazione !== null" [class.not-available]="item.stazione === null">{{ item.stazione ?? 'Non disponibile' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="xs muted warnings-note">{{ summary() }}</p>
+  }
+  @if (loading()) {
+    <p role="status">Caricamento delle chiamate senza risposta…</p>
+  }
+  @if (error(); as message) {
+    <p class="note err" role="alert">{{ message }}
+      <button type="button" class="linkbtn" (click)="retry()">Riprova</button>
+    </p>
+  } @else if (!loading() && items().length === 0) {
+    <p class="muted" role="status">
+      Nessun dettaglio disponibile: le chiamate senza risposta di questa finestra non sono più consultabili
+      (retention) o sono state risolte nel frattempo.
+    </p>
+  }
+  @if (nextCursor() && !loading() && !error()) {
+    <button type="button" class="linkbtn" (click)="loadMore()">Mostra altre chiamate</button>
+  }
+</div>

@@ -1,0 +1,48 @@
+// Design tokens ported from the pagoPA observability mockups (docs/mockups/assets/style.css).
+// Source of truth for colours, typography and radii — no hardcoded values in components.
+:root {
+  --text: #17324d;
+  --surface: #fff;
+  --re-column-width: 420px;
+  --muted: #5c6f82;
+  --line: #e3e7eb;
+  --line-strong: #c5ced6;
+  --primary: #0073e6;
+  --primary-d: #0062c3;
+  --primary-bg: #eaf3fd;
+  --soft: #f5f8fb;
+  --ok: #008758;
+  --ok-bg: #e8f6ef;
+  --warn: #8a5300;
+  --warn-bg: #fff4da;
+  --warn-line: #f5b700;
+  --err: #c02927;
+  --err-bg: #fdecec;
+  --mono: 'DM Mono', ui-monospace, sfmono-regular, menlo, consolas, monospace;
+  --mono-system: ui-monospace, sfmono-regular, menlo, consolas, monospace;
+  --font-body: 'Titillium Web', system-ui, sans-serif;
+  --font-size-small: 13px;
+  --font-size-display: 32px;
+  --font-weight-semibold: 600;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-6: 24px;
+  --space-matrix-note: 10px;
+  --payment-flow-min-column-width: 196px;
+  --share-bar-min-width: 220px;
+  --share-bar-height: 8px;
+  --share-percent-width: 56px;
+  --pie-size: 168px;
+  --chart-1: #0073e6;
+  --chart-2: #008758;
+  --chart-3: #f5b700;
+  --chart-4: #7b4bb7;
+  --chart-5: #e8590c;
+  --chart-6: #14a3b8;
+  --chart-7: #c02927;
+  --chart-8: #6c7a89;
+  --chart-9: #7a9e00;
+  --chart-10: #d6336c;
+}

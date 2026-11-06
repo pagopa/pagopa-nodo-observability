@@ -1,0 +1,71 @@
+:host {
+  display: block;
+  margin-block: var(--space-3);
+  grid-column: 1 / -1;
+}
+h4,
+h5,
+p {
+  margin-block: var(--space-1-5);
+}
+ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding-inline-start: var(--space-3);
+}
+ol li {
+  flex: 1 1 var(--payment-flow-min-column-width);
+  border: solid var(--line);
+  padding: var(--space-3);
+  background: var(--soft);
+  overflow-wrap: anywhere;
+}
+li[aria-current='step'] {
+  border-color: var(--primary);
+  background: var(--primary-bg);
+}
+time,
+ol code {
+  display: block;
+}
+code {
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+dt {
+  font-weight: var(--font-weight-semibold);
+}
+dd {
+  margin-inline-start: 0;
+  margin-block-end: var(--space-1-5);
+}
+summary {
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+}
+summary:focus-visible {
+  outline: solid var(--primary);
+}
+.legend,
+.schema {
+  border-top: solid var(--line);
+  padding-block: var(--space-3);
+}
+.phases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.phases section {
+  flex: 1 1 var(--payment-flow-min-column-width);
+  padding: var(--space-1-5);
+  background: var(--soft);
+}
+.phases app-state-badge {
+  display: block;
+  margin-block: var(--space-1-5);
+}
+ul li {
+  margin-block: var(--space-1-5);
+}

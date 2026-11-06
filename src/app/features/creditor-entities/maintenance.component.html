@@ -1,0 +1,85 @@
+<section aria-labelledby="maintenance-title">
+  <div class="sh">
+    <div>
+      <h2 id="maintenance-title">Manutenzione programmata</h2>
+      <p class="sub">Interruzioni pianificate delle stazioni nei prossimi 7 giorni, aggiornate ogni notte a mezzanotte.</p>
+    </div>
+    <div class="actions">
+      @if (data(); as maintenances) {
+        <span class="chip" aria-live="polite"><em>Aggiornato il</em> {{ format(maintenances.fetchedAt) }}</span>
+      }
+      <button type="button" class="btn o sm" [disabled]="loading()" [attr.aria-busy]="loading()" (click)="load()">
+        {{ loading() ? 'Aggiornamento…' : 'Ricarica' }}
+      </button>
+    </div>
+  </div>
+
+  @if (error(); as message) {
+    <p class="note err" role="alert">{{ message }}
+      @if (data()) { Sono mostrati gli ultimi dati ricevuti. }
+    </p>
+  }
+  @if (data(); as maintenances) {
+    @if (maintenances.stale) {
+      <p class="note" role="status">⚠ L’ultimo aggiornamento notturno non è riuscito: i dati potrebbero non essere aggiornati.</p>
+    }
+    @if (maintenances.items.length === 0) {
+      <p class="muted">Nessuna manutenzione programmata nei prossimi 7 giorni.</p>
+    } @else {
+      <div class="scroll">
+        <table class="tbl">
+          <caption class="sr-only">Manutenzioni programmate delle stazioni nei prossimi 7 giorni.</caption>
+          <thead><tr><th>Periodo</th><th>Intermediario</th><th>Stazioni</th><th>Enti creditori coinvolti</th></tr></thead>
+          <tbody>
+            @for (item of maintenances.items; track $index) {
+              <tr [class.past]="status(item) === 'past'">
+                <td>
+                  @switch (status(item)) {
+                    @case ('ongoing') { <span class="badge b-warn">⚠ {{ statusLabels.ongoing }}</span> }
+                    @case ('upcoming') { <span class="badge b-info">{{ statusLabels.upcoming }}</span> }
+                    @default { <span class="badge b-mute">{{ statusLabels.past }}</span> }
+                  }
+                  <div class="period tabular-nums">{{ period(item) }}</div>
+                  <div class="sub">Durata {{ duration(item) }}</div>
+                </td>
+                <td>{{ item.brokerName }}<div class="sub mono">{{ item.brokerCode }}</div></td>
+                <td>
+                  <ul class="tags">
+                    @for (station of item.stations; track station) { <li class="tag mono">{{ station }}</li> }
+                  </ul>
+                </td>
+                <td>
+                  @if (item.creditorInstitutions.length === 0) {
+                    <span class="muted">Nessun ente impattato</span>
+                  } @else {
+                    <ul class="entities">
+                      @for (entity of item.creditorInstitutions.slice(0, visibleCreditors); track entity.code) {
+                        <li>
+                          {{ entity.businessName }} <span class="sub mono">{{ entity.code }}</span>
+                        </li>
+                      }
+                    </ul>
+                    @if (item.creditorInstitutions.length > visibleCreditors) {
+                      <details>
+                        <summary>Altri {{ item.creditorInstitutions.length - visibleCreditors }}</summary>
+                        <ul class="entities">
+                          @for (entity of item.creditorInstitutions.slice(visibleCreditors); track entity.code) {
+                            <li>
+                              {{ entity.businessName }} <span class="sub mono">{{ entity.code }}</span>
+                            </li>
+                          }
+                        </ul>
+                      </details>
+                    }
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  } @else if (loading()) {
+    <p role="status">Caricamento delle manutenzioni programmate…</p>
+  }
+</section>

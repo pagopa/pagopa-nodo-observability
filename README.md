@@ -1,4 +1,4 @@
-# pagoPA Node Observability
+# pagoPA Nodo Observability
 
 An Angular web console for viewing the status and history of payments and their payment attempts. The application is read-only and retrieves
 its data from the `pagopa-node-technical-support-worker` backend.
