@@ -1,0 +1,483 @@
+@use '@angular/material' as mat;
+
+.overview-status {
+  margin-top: 24px;
+}
+
+// Filters share a single row on desktop: fields shrink with the row (state selects get more room
+// because their options are the longest) and long option text is truncated by the control itself.
+// Below the tablet breakpoint the row wraps again so controls stay usable.
+.overview-toolbar {
+  flex-wrap: nowrap;
+
+  > app-time-window {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .field {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .field-wide {
+    flex-grow: 2;
+  }
+
+  select,
+  input[type='text'] {
+    width: 100%;
+    min-width: 0;
+    text-overflow: ellipsis;
+  }
+
+  @media (max-width: 960px) {
+    flex-wrap: wrap;
+
+    .field {
+      flex: 1 1 160px;
+    }
+  }
+}
+
+// Sync icon shown inside the "Dati aggiornati" chip while a refresh is in flight. It lives in the
+// fixed page header, so it signals an incoming update without reflowing the content below.
+.chip-sync {
+  width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  animation: chip-sync-spin 1s linear infinite;
+}
+
+@keyframes chip-sync-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip-sync {
+    animation: none;
+  }
+}
+
+.retry-actions {
+  margin-top: 8px;
+}
+
+.overview-note {
+  margin-top: 12px;
+}
+
+.state-description {
+  margin-bottom: 8px;
+}
+
+.attempt-states-toggle {
+  margin-top: var(--space-3);
+}
+
+.bar-graphic {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.bar-graphic rect {
+  fill: var(--primary);
+}
+
+.dist-row.w .bar-graphic rect {
+  fill: var(--warn-line);
+}
+
+.matrix tr.clickable {
+  position: relative;
+}
+
+.matrix .mono {
+  font-family: var(--mono-system);
+}
+
+.matrix-row-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.matrix-row-link::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+
+.matrix tr:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.matrix .not-available {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.matrix-expansion-toggle {
+  position: relative;
+  z-index: 1;
+}
+
+.matrix-unresolved {
+  color: var(--warn);
+}
+
+.matrix-note {
+  margin-top: var(--space-matrix-note);
+}
+
+.primitive-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  margin-bottom: var(--space-3);
+}
+
+.primitive-total {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+
+  .l {
+    color: var(--muted);
+    font-size: var(--font-size-small);
+  }
+
+  b {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.primitive-natures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.primitive-nature {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--space-1-5);
+  background: var(--surface);
+
+  h3 {
+    margin: 0;
+  }
+}
+
+.primitive-nature-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.primitive-nature-total {
+  color: var(--muted);
+  font-size: var(--font-size-small);
+  white-space: nowrap;
+
+  b {
+    color: var(--text);
+    font-size: var(--font-size-display);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.primitive-nature-share {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  .nature-bar {
+    flex: 1;
+    height: var(--share-bar-height);
+    background: var(--soft);
+    border-radius: calc(var(--share-bar-height) / 2);
+    overflow: hidden;
+  }
+
+  .xs {
+    white-space: nowrap;
+  }
+}
+
+.primitive-nature-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+
+  li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-1-5) 0;
+    border-bottom: 1px solid var(--line);
+    font-size: var(--font-size-small);
+  }
+
+  .mono {
+    font-family: var(--mono-system);
+    overflow-wrap: anywhere;
+  }
+
+  b {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.primitive-nature-count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.primitive-nature-warn {
+  color: var(--warn);
+  font-size: var(--font-size-small);
+}
+
+.primitive-total-count {
+  font-size: var(--font-size-display);
+}
+
+.primitive-table {
+  .mono {
+    font-family: var(--mono-system);
+  }
+
+  .not-available {
+    color: var(--muted);
+    font-style: italic;
+  }
+}
+
+.primitive-share {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: var(--share-bar-min-width);
+
+  .bar {
+    flex: 1;
+    height: var(--share-bar-height);
+    background: var(--soft);
+    border-radius: calc(var(--share-bar-height) / 2);
+    overflow: hidden;
+  }
+}
+
+.primitive-percent {
+  flex: 0 0 var(--share-percent-width);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.primitive-toggle-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .chevron {
+    flex-shrink: 0;
+    width: var(--space-3);
+    height: var(--space-3);
+    color: var(--primary);
+    transition: transform 0.15s ease-out;
+  }
+
+  &[aria-expanded='true'] .chevron {
+    transform: rotate(90deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primitive-toggle-row .chevron {
+    transition: none;
+  }
+}
+
+.primitive-detail {
+  background: var(--soft);
+
+  .primitive-name {
+    padding-left: var(--space-6);
+  }
+}
+
+.primitive-warning {
+  white-space: nowrap;
+}
+
+// The warning badge of a primitive row doubles as the control that lists its unanswered calls.
+.primitive-warning-toggle {
+  cursor: pointer;
+  font-family: inherit;
+
+  &:hover {
+    border-color: currentColor;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  .chevron {
+    transition: transform 0.15s ease-out;
+  }
+
+  &[aria-expanded='true'] .chevron {
+    transform: rotate(90deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primitive-warning-toggle .chevron {
+    transition: none;
+  }
+}
+
+.primitive-warnings-row {
+  background: var(--soft);
+
+  > td {
+    padding: 0;
+  }
+}
+
+.primitive-toggle,
+.primitive-note {
+  margin-top: var(--space-3);
+}
+
+.matrix-toggle,
+.duration-toggle {
+  margin-top: var(--space-3);
+}
+
+.transition-layout > div {
+  min-width: 0;
+}
+
+.transition-layout .num {
+  white-space: nowrap;
+}
+
+.transition-chart {
+  text {
+    fill: var(--muted);
+  }
+
+  .grid {
+    stroke: var(--line);
+  }
+
+  .source-bar {
+    fill: var(--primary);
+  }
+
+  .hatch-background {
+    fill: var(--primary-bg);
+  }
+
+  .hatch-line {
+    stroke: var(--primary);
+    stroke-width: 2.2;
+  }
+}
+
+.source-swatch {
+  background: var(--primary);
+}
+
+.inferred-swatch {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--primary) 0 2px,
+    var(--primary-bg) 2px 5px
+  );
+}
+
+.duration-description {
+  color: var(--muted);
+  font-size: var(--font-size-small);
+  margin-bottom: var(--space-1-5);
+}
+
+.duration-transition {
+  font-family: var(--mono-system);
+  font-size: var(--font-size-small);
+}
+
+.duration-tabs {
+  @include mat.tabs-overrides((
+    active-indicator-color: var(--primary),
+    active-focus-indicator-color: var(--primary),
+    active-hover-indicator-color: var(--primary),
+    active-label-text-color: var(--primary),
+    active-focus-label-text-color: var(--primary),
+    active-hover-label-text-color: var(--primary),
+    inactive-label-text-color: var(--muted),
+    inactive-focus-label-text-color: var(--text),
+    inactive-hover-label-text-color: var(--text),
+    divider-color: var(--line),
+    label-text-font: var(--font-body),
+    label-text-size: var(--font-size-small),
+    label-text-weight: var(--font-weight-semibold),
+    container-height: calc(var(--space-3) * 3),
+  ));
+}
+
+.duration-panel {
+  display: block;
+  margin-top: var(--space-3);
+}
+
+.primitive-direction-group + .primitive-direction-group {
+  margin-top: var(--space-2);
+}
+
+.primitive-direction-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-1);
+
+  h4 {
+    margin: 0;
+    font-size: var(--font-size-small);
+  }
+
+  b {
+    font-variant-numeric: tabular-nums;
+  }
+}

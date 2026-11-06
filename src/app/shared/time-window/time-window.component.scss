@@ -1,0 +1,12 @@
+:host {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.validation-error {
+  flex-basis: 100%;
+  color: var(--err);
+  margin: 0;
+}

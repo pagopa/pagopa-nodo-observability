@@ -1,0 +1,630 @@
+<app-node-services />
+
+<div class="page-head">
+  <div>
+    <h1>Monitoraggio pagamenti</h1>
+    <p class="lead">Fotografia aggiornata del sistema. Pagamenti e tentativi sono conteggiati separatamente.</p>
+  </div>
+  @if (overview(); as data) {
+    <span class="chip" aria-live="polite">
+      <span class="dot" [class.warn]="degraded() || data.freshness.status !== 'CURRENT'"></span>
+      @if (degraded()) {
+        <strong>Connessione interrotta</strong> <em>· ultimo aggiornamento alle</em> {{ format(data.snapshotAt) }}
+      } @else {
+        <em>Dati aggiornati alle</em> {{ format(data.snapshotAt) }}
+      }
+      @if (loading()) {
+        <svg class="chip-sync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Aggiornamento in arrivo">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/>
+        </svg>
+      }
+    </span>
+  }
+</div>
+
+<!-- filtri -->
+<div class="toolbar overview-toolbar">
+  <app-time-window [selection]="timeWindow()" />
+  <label class="field field-wide"><span>Stato pagamento</span>
+    <select [value]="logicalState()" (change)="updateFromEvent('logicalState', $event)">
+      <option value="">Tutti</option>
+      @for (group of logicalGroups(); track group.phase) {
+        <optgroup [label]="group.label">
+          @for (state of group.states; track state.code) { <option [value]="state.code">{{ state.code }} · {{ state.label }}</option> }
+        </optgroup>
+      }
+    </select>
+  </label>
+  <label class="field field-wide"><span>Stato tentativo</span>
+    <select [value]="attemptState()" (change)="updateFromEvent('attemptState', $event)">
+      <option value="">Tutti</option>
+      @for (group of attemptGroups(); track group.phase) {
+        <optgroup [label]="group.label">
+          @for (state of group.states; track state.code) { <option [value]="state.code">{{ state.code }} · {{ state.label }}</option> }
+        </optgroup>
+      }
+    </select>
+  </label>
+  <label class="field"><span>PSP</span>
+    <input type="text" [value]="psp()" (change)="updateFromEvent('psp', $event)" placeholder="Tutti">
+  </label>
+  <label class="field"><span>Canale</span>
+    <input type="text" [value]="canale()" (change)="updateFromEvent('canale', $event)" placeholder="Tutti">
+  </label>
+  <label class="field"><span>ServiceIdentifier</span>
+    <select aria-label="Identificativo del servizio" [disabled]="catalogLoading() || catalogError() !== null" (change)="updateFromEvent('serviceIdentifier', $event)">
+      <option value="" [selected]="!serviceIdentifier()">Tutti</option>
+      @for (identifier of serviceIdentifierOptions(); track identifier) {
+        <option [value]="identifier" [selected]="serviceIdentifier() === identifier">
+        {{ identifier }}{{ catalogLoaded() && !serviceIdentifiers().includes(identifier) ? ' (non presente nell’elenco)' : '' }}
+        </option>
+      }
+    </select>
+  </label>
+</div>
+
+@if (catalogLoading()) { <p class="muted overview-status" role="status">Caricamento elenco degli identificativi di servizio…</p> }
+@if (catalogError(); as message) {
+  <div class="note err overview-status" role="alert">
+    <span>{{ message }}</span>
+    <button class="btn o sm" type="button" aria-label="Riprova caricamento elenco" [disabled]="catalogLoading()" (click)="retryCatalog()">Riprova</button>
+  </div>
+}
+
+@if (loading() && !overview()) { <p class="muted overview-status" role="status">Caricamento dei dati della finestra selezionata…</p> }
+@if (error(); as message) {
+  <div class="note err overview-status" role="alert">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <div>
+      {{ message }}
+      <div class="chips retry-actions">
+        <button class="btn o sm" type="button" (click)="retry()">Riprova</button>
+        <a class="btn o sm" routerLink="/payments" [queryParams]="attemptListParams()">Apri lista tentativi</a>
+      </div>
+    </div>
+  </div>
+}
+
+@if (overview(); as data) {
+  <!-- KPI -->
+  <div class="kpis">
+    <a class="kpi" routerLink="/payments" [queryParams]="paymentListParams()">
+      <span class="l">Pagamenti</span>
+      <div class="v">{{ data.counts.payments | number }}</div>
+      <span class="d">con attività nell’intervallo</span>
+    </a>
+    <a class="kpi" routerLink="/payments" [queryParams]="attemptListParams()">
+      <span class="l">Tentativi</span>
+      <div class="v">{{ data.counts.attempts | number }}</div>
+      <span class="d">token con attività nell’intervallo</span>
+    </a>
+    <a class="kpi warn" routerLink="/payments" [queryParams]="attemptListParams({ unresolvedOnly: 'true' })">
+      <span class="l">Tentativi non risolti</span>
+      <div class="v">{{ data.unresolved.attempts | number }}</div>
+      <span class="d">UNKNOWN + SEND_ERROR</span>
+    </a>
+    <a class="kpi warn" routerLink="/payments" [queryParams]="paymentListParams({ unresolvedOnly: 'true' })">
+      <span class="l">Pagamenti con casi non risolti</span>
+      <div class="v">{{ data.unresolved.payments | number }}</div>
+      <span class="d">almeno un tentativo non risolto</span>
+    </a>
+    <a class="kpi" routerLink="/payments" [queryParams]="attemptListParams({ anomaliesOnly: 'true' })">
+      <span class="l">Anomalie data-ora</span>
+      <div class="v">{{ data.anomalies.transitions | number }}</div>
+      <span class="d">transizioni senza data</span>
+    </a>
+  </div>
+
+  <p class="xs muted overview-note">
+    Il traffico e le serie temporali coprono [{{ format(data.window.from) }} – {{ format(data.window.to) }}).
+    Conteggi, KPI e distribuzioni per stato riguardano i pagamenti, i tentativi e i destinatari con attività nello stesso intervallo, mostrando il loro stato attuale.
+    Ultimo snapshot: {{ format(data.snapshotAt) }} ({{ timezone.zone() }}).
+  </p>
+
+  <!-- Distribuzione per stato -->
+  <section class="section">
+    <div class="sh">
+      <div><h2>Distribuzione per stato</h2><p class="sub">Stato attuale delle entità con attività nell’intervallo. Con «Mostra dettaglio» si apre la lista degli stati; selezionando uno stato si apre la lista paginata dei pagamenti corrispondenti.</p></div>
+    </div>
+    <div class="dist-grid">
+      <div class="dist-group">
+        <div class="dist-head">
+          <h3>Pagamenti</h3>
+          <span class="dist-total"><b>{{ logicalTotal() | number }}</b> totali</span>
+        </div>
+        <p class="sub state-description">Stato della posizione (EC + NAV)</p>
+        <app-pie-chart [slices]="logicalSlices()" chartLabel="Distribuzione dei pagamenti per stato" />
+        <details class="dist-detail">
+          <summary>Mostra dettaglio</summary>
+        <ul class="dist-list">
+          @for (row of data.logicalStates; track row.state) {
+            <li class="dist-row" [class.zero]="row.count === 0">
+              <span class="dist-name"><app-state-badge [presentation]="presentation('logical', row.state)" /></span>
+              <a class="dist-count" [routerLink]="['/payments']" [queryParams]="paymentListParams({ logicalState: row.state })" [attr.aria-label]="'Apri pagamenti in stato ' + row.state">
+                <b>{{ row.count | number }}</b>
+                <span class="dist-pct">{{ percent(row.count, logicalTotal()) | number: '1.0-1' }}%</span>
+                <span class="dist-go" aria-hidden="true">›</span>
+              </a>
+              <span class="dist-bar"><svg class="bar-graphic" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect [attr.width]="barWidth(row.count, logicalTotal())" height="100"></rect></svg></span>
+            </li>
+          } @empty {
+            <li class="muted dist-empty">Nessun pagamento nel perimetro.</li>
+          }
+        </ul>
+        </details>
+      </div>
+      <div class="dist-group">
+        <div class="dist-head">
+          <h3>Tentativi</h3>
+          <span class="dist-total"><b>{{ attemptTotal() | number }}</b> totali</span>
+        </div>
+        <p class="sub state-description">Stato di ciascun <span class="mono">paymentToken</span> · in ambra i non risolti</p>
+        <app-pie-chart [slices]="attemptSlices()" chartLabel="Distribuzione dei tentativi per stato" />
+        <details class="dist-detail">
+          <summary>Mostra dettaglio</summary>
+        <ul class="dist-list" id="attempt-state-rows">
+          @for (row of visibleAttemptStates(); track row.state) {
+            <li class="dist-row" [class.w]="isUnresolved(row.state)" [class.zero]="row.count === 0">
+              <span class="dist-name"><app-state-badge [presentation]="presentation('attempt', row.state)" /></span>
+              <a class="dist-count" [routerLink]="['/payments']" [queryParams]="attemptListParams({ attemptState: row.state })" [attr.aria-label]="'Apri tentativi in stato ' + row.state">
+                <b>{{ row.count | number }}</b>
+                <span class="dist-pct">{{ percent(row.count, attemptTotal()) | number: '1.0-1' }}%</span>
+                <span class="dist-go" aria-hidden="true">›</span>
+              </a>
+              <span class="dist-bar"><svg class="bar-graphic" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect [attr.width]="barWidth(row.count, attemptTotal())" height="100"></rect></svg></span>
+            </li>
+          }
+        </ul>
+        @if (orderedAttemptStates().length > 10) {
+          <button class="linkbtn attempt-states-toggle" type="button"
+            aria-controls="attempt-state-rows" [attr.aria-expanded]="showAllAttemptStates()"
+            (click)="showAllAttemptStates.set(!showAllAttemptStates())">
+            {{ showAllAttemptStates() ? 'Mostra solo i principali' : 'Mostra tutti gli stati' }}
+          </button>
+        }
+        </details>
+      </div>
+      <div class="dist-group">
+        <div class="dist-head">
+          <h3>Destinatari ricevuta</h3>
+          @if (recipientsAvailable()) {
+            <span class="dist-total"><b>{{ recipientTotal() | number }}</b> totali</span>
+          }
+        </div>
+        <p class="sub state-description">Stato di ciascun destinatario della ricevuta (<span class="mono">stazione</span>)</p>
+        @if (!recipientsAvailable()) {
+          <p class="note err" role="alert">Dati destinatari non disponibili: contratto del servizio assente o non valido.</p>
+        } @else {
+          <app-pie-chart [slices]="recipientSlices()" chartLabel="Distribuzione dei destinatari ricevuta per stato" />
+          <details class="dist-detail">
+            <summary>Mostra dettaglio</summary>
+          <ul class="dist-list">
+            @for (row of data.recipientStates; track row.state) {
+              <li class="dist-row dist-row-static" [class.zero]="row.count === 0">
+                <span class="dist-name"><app-state-badge [presentation]="presentation('recipient', row.state)" /></span>
+                <span class="dist-count">
+                  <b>{{ row.count | number }}</b>
+                  <span class="dist-pct">{{ percent(row.count, recipientTotal()) | number: '1.0-1' }}%</span>
+                </span>
+                <span class="dist-bar"><svg class="bar-graphic" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect [attr.width]="barWidth(row.count, recipientTotal())" height="100"></rect></svg></span>
+              </li>
+            } @empty {
+              <li class="muted dist-empty">Nessun record destinatario disponibile nel perimetro.</li>
+            }
+          </ul>
+          </details>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Primitive inviate per serviceIdentifier -->
+  <section class="section">
+    <div class="sh">
+      <div>
+        <h2 id="primitives-heading">Primitive inviate per servizio</h2>
+        <p class="sub">Chiamate di primitiva nella finestra, ripartite per <span class="mono">serviceIdentifier</span>; apri un servizio per il dettaglio per primitiva.
+          Le consultazioni non creano pagamenti: solo le primitive di «Pagamento» sono confrontabili con Pagamenti e Tentativi.
+          Ogni richiesta dovrebbe ricevere risposta entro {{ primitiveBudgetSeconds }} s, altrimenti è segnalata.</p>
+      </div>
+    </div>
+    @if (!primitivesAvailable()) {
+      <p class="note err" role="alert">Dati primitive non disponibili: contratto del servizio assente o non valido.</p>
+    } @else {
+      <div class="primitive-summary" role="group" aria-label="Totale primitive nella finestra">
+        <div class="primitive-total">
+          <span class="l">Totale chiamate di primitiva</span>
+          <b class="primitive-total-count">{{ primitiveTotals().requests | number }}</b>
+        </div>
+        <div class="primitive-total">
+          <span class="l">Risposte ricevute</span>
+          <b>{{ primitiveTotals().responses | number }}</b>
+        </div>
+        <div class="primitive-total">
+          <span class="l">Senza risposta entro {{ primitiveBudgetSeconds }} s</span>
+          @if (primitiveTotals().warnings > 0) {
+            <span class="badge b-warn primitive-warning">
+              <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              {{ primitiveTotals().warnings | number }} in warning
+            </span>
+          } @else {
+            <b>0</b>
+          }
+        </div>
+      </div>
+      <div class="primitive-natures" role="group" aria-label="Chiamate di primitiva per natura">
+        @for (group of primitiveNatureTotals(); track group.nature) {
+          <section class="primitive-nature" [attr.aria-label]="group.label">
+            <div class="primitive-nature-head">
+              <h3>{{ group.label }}</h3>
+              <span class="primitive-nature-total"><b>{{ group.requests | number }}</b> chiamate</span>
+            </div>
+            <div class="primitive-nature-share">
+              <span class="nature-bar"><svg class="bar-graphic" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect [attr.width]="group.requests > 0 ? max(1.5, group.share) : 0" height="100"></rect></svg></span>
+              <span class="muted xs">{{ group.share | number: '1.0-1' }}% del totale</span>
+            </div>
+            @for (part of group.directions; track part.direction) {
+              <div class="primitive-direction-group" [attr.data-direction]="part.direction">
+                <div class="primitive-direction-head">
+                  <h4>{{ part.label }} <span class="muted xs">· {{ part.hint }}</span></h4>
+                  <span class="primitive-nature-count">
+                    @if (part.warnings > 0) {
+                      <span class="primitive-nature-warn">{{ part.warnings | number }} senza risposta</span>
+                    }
+                    <b>{{ part.requests | number }}</b>
+                  </span>
+                </div>
+                <ul class="primitive-nature-list">
+                  @for (entry of part.primitives; track entry.primitive) {
+                    <li>
+                      <span class="mono">{{ entry.primitive }}</span>
+                      <span class="primitive-nature-count">
+                        @if (entry.warnings > 0) {
+                          <span class="primitive-nature-warn">{{ entry.warnings | number }} senza risposta</span>
+                        }
+                        <b>{{ entry.requests | number }}</b>
+                      </span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            } @empty {
+              <ul class="primitive-nature-list">
+                <li class="muted">Nessuna chiamata nella finestra</li>
+              </ul>
+            }
+          </section>
+        }
+      </div>
+      <div class="scroll">
+        <table class="tbl primitive-table" id="primitive-rows" aria-labelledby="primitives-heading">
+          <thead>
+            <tr>
+              <th scope="col">Servizio · primitive</th>
+              <th scope="col">Quota sul totale</th>
+              <th scope="col" class="num">Richieste</th>
+              <th scope="col" class="num">Risposte</th>
+              <th scope="col">Warning</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of visiblePrimitiveRows(); track row.key; let service = $index) {
+              <tr class="primitive-service">
+                <td>
+                  <button type="button" class="primitive-toggle-row" [attr.aria-expanded]="expandedPrimitiveServices().has(row.key)"
+                    [attr.aria-controls]="expandedPrimitiveServices().has(row.key) ? 'primitive-detail-' + service : null"
+                    [attr.aria-label]="'Dettaglio primitive di ' + (row.serviceIdentifier ?? 'servizio non disponibile')"
+                    (click)="togglePrimitiveService(row.key)">
+                    <svg class="i chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                    <span [class.mono]="row.serviceIdentifier !== null" [class.not-available]="row.serviceIdentifier === null">{{ row.serviceIdentifier ?? 'Non disponibile' }}</span>&ngsp;<span class="muted xs">({{ row.details.length | number }} {{ row.details.length === 1 ? 'primitiva' : 'primitive' }})</span>
+                  </button>
+                </td>
+                <td class="primitive-share">
+                  <span class="bar"><svg class="bar-graphic" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect [attr.width]="row.share" height="100"></rect></svg></span>
+                  <span class="primitive-percent">{{ row.share | number: '1.1-1' }}%</span>
+                </td>
+                <td class="num"><b>{{ row.requests | number }}</b></td>
+                <td class="num">{{ row.responses | number }}</td>
+                <td>
+                  @if (row.warnings > 0) {
+                    <span class="badge b-warn primitive-warning">
+                      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                      {{ row.warnings | number }} senza risposta entro {{ primitiveBudgetSeconds }} s
+                    </span>
+                  } @else {
+                    <span class="muted">Nessuno</span>
+                  }
+                </td>
+              </tr>
+              @if (expandedPrimitiveServices().has(row.key)) {
+                @for (detail of row.details; track detail.primitive + '|' + detail.direction; let first = $first; let index = $index) {
+                  <tr class="primitive-detail" [attr.id]="first ? 'primitive-detail-' + service : null">
+                    <td class="primitive-name"><span class="mono">{{ detail.primitive }}</span>&ngsp;<span class="muted xs">· {{ primitiveNatureLabel(detail.primitive) }} · {{ primitiveDirectionLabel(detail.direction) }}</span></td>
+                    <td class="primitive-share">
+                      <span class="bar"><svg class="bar-graphic" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect [attr.width]="detail.share" height="100"></rect></svg></span>
+                      <span class="primitive-percent">{{ detail.share | number: '1.1-1' }}%</span>
+                    </td>
+                    <td class="num">{{ detail.requests | number }}</td>
+                    <td class="num">{{ detail.responses | number }}</td>
+                    <td>
+                      @if (detail.warnings > 0) {
+                        <button type="button" class="badge b-warn primitive-warning primitive-warning-toggle"
+                          [attr.aria-expanded]="expandedPrimitiveWarnings().has(primitiveWarningsKey(row.key, detail.primitive))"
+                          [attr.aria-controls]="expandedPrimitiveWarnings().has(primitiveWarningsKey(row.key, detail.primitive)) ? 'primitive-warnings-' + service + '-' + index : null"
+                          [attr.aria-label]="(detail.warnings === 1 ? 'Dettaglio della chiamata di ' : 'Dettaglio delle ' + detail.warnings + ' chiamate di ') + detail.primitive + ' senza risposta entro ' + primitiveBudgetSeconds + ' s'"
+                          (click)="togglePrimitiveWarnings(row.key, detail.primitive)">
+                          <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                          {{ detail.warnings | number }} senza risposta entro {{ primitiveBudgetSeconds }} s
+                          <svg class="i chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                      } @else {
+                        <span class="muted">Nessuno</span>
+                      }
+                    </td>
+                  </tr>
+                  @if (detail.warnings > 0 && expandedPrimitiveWarnings().has(primitiveWarningsKey(row.key, detail.primitive))) {
+                    <tr class="primitive-warnings-row" [attr.id]="'primitive-warnings-' + service + '-' + index">
+                      <td colspan="5">
+                        <app-primitive-warnings [filters]="warningFilters()" [serviceIdentifier]="row.key"
+                          [primitive]="detail.primitive" [expected]="detail.warnings" />
+                      </td>
+                    </tr>
+                  }
+                }
+              }
+            } @empty {
+              <tr><td colspan="5" class="muted">Nessuna primitiva inviata nella finestra selezionata.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (primitiveRows().length > 10) {
+        <button class="linkbtn primitive-toggle" type="button"
+          aria-controls="primitive-rows" [attr.aria-expanded]="showAllPrimitiveRows()"
+          (click)="showAllPrimitiveRows.set(!showAllPrimitiveRows())">
+          {{ showAllPrimitiveRows() ? 'Mostra solo i primi 10' : 'Mostra tutti i servizi' }}
+        </button>
+      }
+      <p class="xs muted primitive-note">Una richiesta ancora entro i {{ primitiveBudgetSeconds }} s non è un warning. Le quote sommano al 100% delle richieste.</p>
+    }
+  </section>
+
+  <!-- Dove si concentrano i casi non risolti -->
+  <section class="section">
+    <div class="sh">
+      <div><h2 id="unresolved-matrix-heading">Dove si concentrano i casi non risolti</h2><p class="sub">Tentativi per stato ripartiti per PSP o canale; destinatari ricevuta per <span class="mono">stazione</span>.</p></div>
+      <div class="seg" role="group" aria-label="Ripartizione per dimensione">
+        <button type="button" [class.on]="matrixDimension() === 'psp'"
+          [attr.aria-pressed]="matrixDimension() === 'psp'" aria-controls="unresolved-matrix"
+          (click)="matrixDimension.set('psp')">Per PSP</button>
+        <button type="button" [class.on]="matrixDimension() === 'canale'"
+          [attr.aria-pressed]="matrixDimension() === 'canale'" aria-controls="unresolved-matrix"
+          (click)="matrixDimension.set('canale')">Per canale</button>
+        <button type="button" [class.on]="matrixDimension() === 'recipient'"
+          [attr.aria-pressed]="matrixDimension() === 'recipient'" aria-controls="unresolved-matrix"
+          (click)="matrixDimension.set('recipient')">Per stazione</button>
+      </div>
+    </div>
+    <div class="scroll">
+      @if (matrixDimension() === 'recipient' && !recipientMatrixAvailable()) { <p class="note err" role="alert">Dati destinatari non disponibili: matrice del servizio assente o non valida.</p> } @else {
+      <table class="tbl matrix" id="unresolved-matrix" aria-labelledby="unresolved-matrix-heading">
+        <thead>
+          <tr>
+            <th scope="col">{{ matrixDimensionLabel() }}</th>
+            @for (column of matrixColumns(); track column.state) {
+              <th scope="col" class="num" [attr.title]="column.state">{{ column.label }}</th>
+            }
+            @if (matrixDimension() !== 'recipient') {
+              <th scope="col" class="num">Non risolti</th>
+              <th scope="col" class="num">Totale tentativi</th>
+              <th scope="col"><span class="sr-only">Dettaglio</span></th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of visibleMatrixRows(); track row.value) {
+            <tr [class.clickable]="matrixDimension() !== 'recipient'">
+              <td [class.mono]="row.value !== null" [class.not-available]="row.value === null">
+                @if (matrixDimension() === 'recipient') {
+                  {{ row.value ?? 'Non disponibile' }}
+                } @else {
+                  <a class="matrix-row-link" routerLink="/payments"
+                    [queryParams]="matrixListParams(matrixDimension(), row.value)"
+                    [attr.aria-label]="'Apri tentativi per ' + matrixDimensionLabel() + ': ' + (row.value ?? 'Non disponibile')">{{ row.value ?? 'Non disponibile' }}</a>
+                }
+              </td>
+              @for (cell of row.cells; track cell.state) {
+                <td class="num" [class.warn-cell]="isUnresolved(cell.state) && cell.count > 0">{{ cell.count | number }}</td>
+              }
+              @if (matrixDimension() !== 'recipient') {
+                <td class="num"><b class="matrix-unresolved">{{ row.unresolved | number }}</b></td>
+                <td class="num">{{ row.total | number }}</td>
+                <td class="go">
+                  <button class="linkbtn matrix-expansion-toggle" type="button"
+                    [attr.aria-label]="(matrixRowExpanded(row.value) ? 'Nascondi' : 'Mostra') + ' stati per ' + matrixDimensionLabel() + ' ' + (row.value ?? 'Non disponibile')"
+                    [attr.aria-expanded]="matrixRowExpanded(row.value)"
+                    [attr.aria-controls]="matrixRowExpanded(row.value) ? matrixDetailId(matrixDimension(), row.value) : null"
+                    (click)="toggleMatrixRow(row.value)">
+                    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                </td>
+              }
+            </tr>
+            @if (matrixDimension() !== 'recipient' && matrixRowExpanded(row.value)) {
+              <tr class="matrix-detail-row">
+                <td [attr.colspan]="matrixColumns().length + 4">
+                  <div class="matrix-detail" [id]="matrixDetailId(matrixDimension(), row.value)"
+                    [attr.aria-label]="'Stati tentativo per ' + matrixDimensionLabel() + ' ' + (row.value ?? 'Non disponibile')">
+                    <table class="tbl matrix-detail-table">
+                      <caption class="sr-only">Stati tentativo per {{ matrixDimensionLabel() }} {{ row.value ?? 'Non disponibile' }}</caption>
+                      <tbody>
+                        @for (cell of row.stateCells; track cell.state) {
+                          <tr>
+                            <th scope="row" [attr.data-attempt-state]="cell.state">{{ cell.state }}</th>
+                            <td class="num">{{ cell.count | number }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </td>
+              </tr>
+            }
+          } @empty {
+            <tr><td [attr.colspan]="matrixColumns().length + (matrixDimension() === 'recipient' ? 1 : 4)" class="muted">Nessun dato disponibile per {{ matrixDimensionLabel() }}.</td></tr>
+          }
+        </tbody>
+      </table>
+      }
+    </div>
+    <details>
+      <summary>Significato degli stati · {{ matrixDimension() === 'recipient' ? 'Destinatari ricevuta' : 'Tentativi' }}</summary>
+      @for (column of matrixColumns(); track column.state) {
+        <app-state-badge [presentation]="column.presentation" />
+      }
+    </details>
+    @if (matrixRows().length > 10) {
+      <button class="linkbtn matrix-toggle" type="button"
+        aria-controls="unresolved-matrix" [attr.aria-expanded]="showAllMatrixRows()"
+        (click)="showAllMatrixRows.set(!showAllMatrixRows())">
+        {{ showAllMatrixRows() ? 'Mostra solo i primi 10' : 'Mostra tutti' }}
+      </button>
+    }
+    <p class="xs muted matrix-note">I valori non ancora noti sono conteggiati sotto «Non disponibile» e si spostano quando arriva l'evento che li acquisisce.</p>
+  </section>
+
+  <!-- Andamento + durate -->
+  <section class="section">
+    <div class="sh">
+      <div><h2>Andamento dei passaggi di stato</h2><p class="sub">Passaggi per intervallo, basati su <span class="mono">transitionAt</span>. I passaggi inferiti hanno un’ora stimata e sono tratteggiati.</p></div>
+    </div>
+    <div class="cols-3-2 transition-layout">
+      <div>
+        @if (transitionTrend().bars.length) {
+          <svg class="chart transition-chart" viewBox="0 0 900 210" role="img"
+            aria-label="Andamento dei passaggi di stato: barre impilate da evento sorgente e inferite"
+            aria-describedby="transition-chart-description">
+            <desc id="transition-chart-description">
+              Conteggi per intervallo nel fuso {{ timezone.zone() }}. Blu: da evento sorgente. Tratteggio: inferito, con ora stimata.
+              @for (bar of transitionTrend().bars; track bar.instant) {
+                {{ bar.title }}: da evento {{ bar.source | number }}, inferito {{ bar.inferred | number }}.
+              }
+            </desc>
+            <defs>
+              <pattern id="transition-inferred-hatch" width="6" height="6"
+                patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect class="hatch-background" width="6" height="6" />
+                <line class="hatch-line" x1="0" y1="0" x2="0" y2="6" />
+              </pattern>
+            </defs>
+            @for (tick of transitionTrend().ticks; track tick.value) {
+              <line class="grid" x1="48" x2="892" [attr.y1]="tick.y" [attr.y2]="tick.y" />
+              <text x="40" [attr.y]="tick.y + 4" text-anchor="end">{{ tick.value | number }}</text>
+            }
+            @for (bar of transitionTrend().bars; track bar.instant) {
+              @if (bar.source) {
+                <rect class="b source-bar" [attr.x]="bar.x" [attr.y]="bar.sourceY"
+                  [attr.width]="bar.width" [attr.height]="bar.sourceHeight">
+                  <title>{{ bar.title }} · Da evento (sorgente): {{ bar.source | number }}</title>
+                </rect>
+              }
+              @if (bar.inferred) {
+                <rect class="b" [attr.x]="bar.x" [attr.y]="bar.inferredY"
+                  [attr.width]="bar.width" [attr.height]="bar.inferredHeight" fill="url(#transition-inferred-hatch)">
+                  <title>{{ bar.title }} · Inferito (ora stimata): {{ bar.inferred | number }}</title>
+                </rect>
+              }
+              @if (bar.label) {
+                <text [attr.x]="bar.labelX" y="202" text-anchor="middle">{{ bar.label }}</text>
+              }
+            }
+          </svg>
+          <div class="legend">
+            <span><i class="source-swatch" aria-hidden="true"></i>Da evento (sorgente)</span>
+            <span><i class="inferred-swatch" aria-hidden="true"></i>Inferito (ora stimata)</span>
+          </div>
+        } @else {
+          <p class="empty-lock">Nessun passaggio di stato registrato nell’intervallo selezionato.</p>
+        }
+        <aside class="note overview-note" aria-label="Come leggere il grafico">
+          <div>
+            <p><strong class="mono">transitionAt</strong>: data e ora attribuite al passaggio di stato, usate per collocarlo nel grafico; non è l’ora di ricezione o elaborazione dell’evento. Le date sono visualizzate nel fuso selezionato.</p>
+            <p><strong>Da evento</strong>: passaggio registrato esplicitamente dal Nodo, con data e ora ricavate da <span class="mono">dataOraEvento</span> dell’evento sorgente.</p>
+            <p><strong>Inferito</strong>: passaggio non osservato direttamente, ricostruito secondo le regole della macchina a stati. Usa la data e ora dell’evento che ne ha permesso la ricostruzione: l’ora è quindi stimata. Nel grafico è tratteggiato ed è escluso dai calcoli di mediana e p95.</p>
+          </div>
+        </aside>
+      </div>
+      <div>
+        <h3>Durata mediana tra passaggi</h3>
+        <p class="sub duration-description">Solo passaggi da evento sorgente. Esclusi inferiti e anomalie.</p>
+        <nav mat-tab-nav-bar class="duration-tabs" [tabPanel]="durationPanel"
+          [mat-stretch-tabs]="false" aria-label="Entità delle durate">
+          <button mat-tab-link type="button" [active]="durationEntity() === 'logical'"
+            (click)="durationEntity.set('logical')">Pagamenti</button>
+          <button mat-tab-link type="button" [active]="durationEntity() === 'attempt'"
+            (click)="durationEntity.set('attempt')">Tentativi</button>
+          <button mat-tab-link type="button" [active]="durationEntity() === 'recipient'"
+            (click)="durationEntity.set('recipient')">Destinatari ricevuta</button>
+        </nav>
+        <mat-tab-nav-panel #durationPanel class="duration-panel">
+          @if (sourceDurations().length) {
+            <div class="scroll">
+              <table class="tbl" id="transition-durations">
+                <thead><tr><th scope="col">Passaggio</th><th scope="col" class="num">Mediana</th><th scope="col" class="num">p95</th></tr></thead>
+                <tbody>
+                  @for (duration of visibleDurations(); track duration.entity + duration.fromState + duration.toState) {
+                    <tr>
+                      <td class="mono duration-transition"
+                        [attr.aria-label]="(duration.entity === 'logical' ? 'Pagamento' : duration.entity === 'recipient' ? 'Destinatario ricevuta' : 'Tentativo') + ': ' + duration.fromState + ' → ' + duration.toState">
+                        <span class="duration-code">{{ duration.fromState }} → {{ duration.toState }}</span>
+                        <details><summary>Significato del passaggio · {{ duration.entity === 'logical' ? 'Pagamento' : duration.entity === 'recipient' ? 'Destinatario ricevuta' : 'Tentativo' }}</summary>
+                          <app-state-badge [presentation]="presentation(duration.entity, duration.fromState)" /> →
+                          <app-state-badge [presentation]="presentation(duration.entity, duration.toState)" />
+                        </details>
+                      </td>
+                      <td class="num">{{ formatDuration(duration.medianMs) }}</td>
+                      <td class="num">{{ formatDuration(duration.p95Ms) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            @if (sourceDurations().length > 10) {
+              <button class="linkbtn duration-toggle" type="button"
+                aria-controls="transition-durations" [attr.aria-expanded]="showAllDurations()"
+                (click)="showAllDurations.set(!showAllDurations())">
+                {{ showAllDurations() ? 'Mostra solo i primi 10' : 'Mostra tutto' }}
+              </button>
+            }
+          } @else {
+            <p class="empty-lock">Nessuna durata calcolabile per {{ durationEntity() === 'logical' ? 'i pagamenti logici' : durationEntity() === 'recipient' ? 'i destinatari ricevuta' : 'i tentativi' }} nella finestra. I tempi anomali o negativi sono esclusi.</p>
+          }
+        </mat-tab-nav-panel>
+      </div>
+    </div>
+  </section>
+
+  <!-- Freschezza -->
+  <section class="section">
+    <div class="sh">
+      <div><h2>Acquisizione e freschezza</h2><p class="sub">Metadati tecnici di acquisizione, non dati di business.</p></div>
+      <a class="linkbtn" routerLink="/payments" [queryParams]="attemptListParams({ anomaliesOnly: 'true' })">Transizioni con data-ora mancante: {{ data.anomalies.transitions | number }}</a>
+    </div>
+    <div class="chips">
+      @if (degraded()) {
+        <span class="badge b-warn">NON AGGIORNATO</span>
+        <span class="chip"><em>Ritardo</em> non verificabile</span>
+      } @else {
+        <span class="badge" [class.b-ok]="data.freshness.status === 'CURRENT'" [class.b-warn]="data.freshness.status !== 'CURRENT'">{{ data.freshness.status }}</span>
+        <span class="chip"><em>Ritardo</em> {{ data.freshness.lagSeconds }} s</span>
+      }
+      <span class="chip"><em>Pagamenti con anomalia</em> {{ data.anomalies.payments | number }}</span>
+    </div>
+    @if (degraded()) {
+      <p class="xs overview-note" role="status">Il servizio non è raggiungibile ({{ connection() }}): i valori mostrati sono l’ultimo snapshot ricevuto e lo stato di freschezza non è verificabile.</p>
+    } @else {
+    <p class="xs muted overview-note">La freschezza di ingestione non dipende dallo stato della connessione di questo browser ({{ connection() }}).</p>
+    }
+  </section>
+}

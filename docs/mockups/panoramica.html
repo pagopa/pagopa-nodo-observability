@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mockup · Osservabilità pagamenti</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/app.js"></script>
+</head>
+<body data-page="">
+<main class="wrap">
+  <div class="page-head">
+    <div>
+      <h1>Mockup della piattaforma di osservabilità dei pagamenti</h1>
+      <p class="lead">Anteprima di accettazione del 23 ottobre 2026, basata su «Cambiamento di stati» e sul disegno approvato. Tutti i dati sono fittizi; nessuna modifica all’applicazione Angular.</p>
+    </div>
+  </div>
+
+  <div class="rows mockup-links">
+    <a class="row mockup-link" href="index.html">
+      <span class="mockup-link-copy"><b class="mockup-link-title">1 · Dashboard (index.html)</b><br><span class="muted small">§3.3, §3.4 · Conteggi per stato (pagamenti logici e tentativi separati), non risolti, filtri, ripartizione per PSP e canale, andamento e durate, traffico per ente, freschezza dell'acquisizione, anomalie.</span></span><i data-i="chevron" data-c="go"></i></a>
+    <a class="row mockup-link" href="02-pagamenti.html">
+      <span class="mockup-link-copy"><b class="mockup-link-title">2 · Ricerca e lista pagamenti</b><br><span class="muted small">Filtri distinti per posizione e tentativo, tutti i 18 stati ordinati per fase, token in chiaro. I link aprono scenari dimostrativi; ricerca e paginazione non sono collegate a un backend.</span></span><i data-i="chevron" data-c="go"></i></a>
+    <a class="row mockup-link" href="03-dettaglio-pagamento.html">
+      <span class="mockup-link-copy"><b class="mockup-link-title">3 · Dettaglio pagamento e tentativi</b><br><span class="muted small">Riepilogo posizione–tentativi, storia osservata con tutte le occorrenze, schema separato per fasi e rami, destinatari e retry. Dal pannello «Controlli demo» si scelgono nove scenari e si simula un outcome positivo.</span></span><i data-i="chevron" data-c="go"></i></a>
+    <a class="row mockup-link" href="04-enti-creditori.html">
+      <span class="mockup-link-copy"><b class="mockup-link-title">4 · Enti creditori</b><br><span class="muted small">§3.3.1 · Elenco paginato ordinabile per traffico o casi non risolti, ricerca per codice fiscale.</span></span><i data-i="chevron" data-c="go"></i></a>
+    <a class="row mockup-link" href="05-dettaglio-ente.html">
+      <span class="mockup-link-copy"><b class="mockup-link-title">5 · Dettaglio ente e traffico per stazione</b><br><span class="muted small">§3.3.1 · Andamento del traffico, pagamenti logici per stato, ripartizione per stazione con accesso alla lista dei pagamenti.</span></span><i data-i="chevron" data-c="go"></i></a>
+  </div>
+
+  <section class="section" id="acceptance">
+    <div class="sh"><div><h2>Scenari per l’accettazione</h2><p class="sub">Apri ogni esempio e confronta gli stati delle diverse entità. Il selettore nei controlli demo permette di cambiare scenario senza tornare al catalogo.</p></div></div>
+    <div class="scroll"><table class="tbl">
+      <thead><tr><th scope="col">Scenario</th><th scope="col">Stato posizione</th><th scope="col">Stato tentativo</th><th scope="col">Cosa verificare</th></tr></thead>
+      <tbody>
+        <tr><td><a href="03-dettaglio-pagamento.html?case=unresolved">Non risolto e riapertura</a></td><td>PAYING</td><td>PAYMENT_UNKNOWN</td><td>Due token distinti; annullo precedente, ritorno a INSERTED e nuovo PAYING conservati. Warning solo sul tentativo corrente.</td></tr>
+        <tr><td><a href="03-dettaglio-pagamento.html?case=paid">Pagato dopo annullo</a></td><td>PAID</td><td>PAID</td><td>Il token annullato resta visibile; i conteggi descrivono solo i tentativi in retention.</td></tr>
+        <tr><td><a href="03-dettaglio-pagamento.html?case=accepted">Accettazione PSP</a></td><td>PAYING</td><td>PAYMENT_ACCEPTED</td><td>Non è ancora PAID: si attende il successivo outcome positivo.</td></tr>
+        <tr><td><a href="03-dettaglio-pagamento.html?case=direct">Outcome diretto</a></td><td>PAID</td><td>PAID</td><td>Storia PAYING → PAID senza stati PSP aggiunti artificialmente.</td></tr>
+        <tr><td><a href="03-dettaglio-pagamento.html?case=failed">Outcome KO ammesso</a></td><td>INSERTED</td><td>FAILED</td><td>FAILED distinto da CANCELLED; posizione disponibile per un nuovo tentativo.</td></tr>
+        <tr><td><a href="03-dettaglio-pagamento.html?case=partial">Consegna parziale</a></td><td>NOTIFIED</td><td>NOTICE_SENT</td><td>Condizioni diverse per posizione e tentativo; destinatario in NOTICE_PENDING senza trasformarlo in stato del token.</td></tr>
+        <tr><td><a href="03-dettaglio-pagamento.html?case=archived">Archiviazione e consegna</a></td><td>NOTICE_STORED</td><td>NOTIFIED</td><td>Posizione ancora archiviata; retry destinatario visibili. Percorso del PDF, applicabilità Nodo da confermare.</td></tr>
+        <tr><td><a href="03-dettaglio-pagamento.html?case=legacy">RPT tardiva</a></td><td>NOTICE_STORED</td><td>NOTICE_STORED</td><td>PAID_NORPT e completamento legacy preservati; archiviazione non presentata come consegna.</td></tr>
+        <tr><td><a href="03-dettaglio-pagamento.html?case=incomplete">Storia incompleta</a></td><td>PAYING</td><td>PAYMENT_UNKNOWN</td><td>Avvio mancante, stato inferito e data-ora anomala espliciti. Nessun passaggio precedente inventato.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note note-spaced"><i data-i="info"></i><div><strong>Limiti dell’anteprima.</strong> I destinatari sono mostrati per posizione, non attribuiti ai token senza un legame esplicito. Nessun conteggio attesi/notificati viene dedotto. L’invio del tentativo da NOTICE_STORED è documentato dal PDF, ma richiede conferma Nodo per ramo/versione. NOTIFIED non dimostra un esito applicativo PA positivo.</div></div>
+    <p class="small muted mode-help">Verifica anche i percorsi con tastiera e a larghezze tablet/desktop. Lo schema FSM è consultabile, non interattivo; le storie e gli aggiornamenti sono esempi sintetici, non eventi di produzione.</p>
+  </section>
+
+  <section class="section">
+    <h2>Scelte di design</h2>
+    <div class="cols design-cols">
+      <ul class="small design-list">
+        <li><b>Look &amp; feel di Checkout:</b> Titillium Web, testo #17324D, blu #0073E6, fondo bianco, pulsanti con raggio di 4&nbsp;px, righe separate da filetti sottili e footer con i link istituzionali.</li>
+        <li><b>Pagamenti logici e tentativi sempre separati</b> in conteggi, liste e dettaglio. Nessun token è contato come pagamento autonomo.</li>
+        <li><b>Valore originale dello stato</b> conservato così come registrato dal Nodo (es. <span class="mono">PAYMENT_UNKNOWN</span>), senza normalizzazioni al posto dell'originale.</li>
+      </ul>
+      <ul class="small design-list">
+        <li><b>Ambra = non risolto</b>, mai rosso: <span class="mono">PAYMENT_UNKNOWN</span> e <span class="mono">PAYMENT_SEND_ERROR</span> non sono KO definitivi. Il warning è solo visivo e resta finché lo stato non evolve.</li>
+        <li><b>Storia osservata distinta dallo schema</b>: tutte le transizioni, incluse ripetizioni e retry. Lo schema raggruppa possibilità, non promette un percorso obbligatorio. Stato corrente e provenienza sono indicati anche con testo.</li>
+        <li><b>Fuso orario</b> selezionabile in alto: le date partono dal valore UTC e si convertono in vista.</li>
+        <li><b>Nessun conteggio totale</b> né polling: paginazione a cursore e aggiornamenti SSE a delta.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+<script>document.addEventListener('shellready',()=>{UI.hydrateIcons();document.getElementById('live').remove();document.querySelector('.nav a.active')?.classList.remove('active');});</script>
+</body>
+</html>

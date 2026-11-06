@@ -1,0 +1,37 @@
+<header class="topbar">
+  <div class="wrap">
+    <span class="org">PagoPA S.p.A.</span>
+    <div class="topbar-r">
+      <label>Fuso orario
+        <select [ngModel]="timezoneValue()" (ngModelChange)="changeTimezone($event)" aria-label="Fuso orario">
+          <option value="Europe/Rome">Europe/Rome</option>
+          <option value="UTC">UTC</option>
+        </select>
+      </label>
+      <span class="user">
+        <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Operatore autorizzato</span>
+      </span>
+    </div>
+  </div>
+</header>
+<div class="wrap brandbar">
+  <a class="logo" routerLink="/overview" aria-label="Osservabilità pagamenti, dashboard"><img src="/assets/payment-observability-logo.jpeg" alt="" /></a>
+  <nav class="nav" aria-label="Navigazione principale">
+    <a routerLink="/overview" routerLinkActive="active" ariaCurrentWhenActive="page">Dashboard</a>
+    <a routerLink="/payments" routerLinkActive="active" ariaCurrentWhenActive="page">Pagamenti</a>
+    <a routerLink="/creditor-entities" routerLinkActive="active" ariaCurrentWhenActive="page">Enti creditori</a>
+  </nav>
+  <span class="live"><span class="dot"></span>Aggiornamenti live attivi</span>
+</div>
+<main class="wrap">
+  <router-outlet />
+</main>
+<footer class="footer">
+  <div class="wrap">
+    <nav aria-label="Collegamenti istituzionali">
+      <a href="#">Aiuto</a><a href="https://status.platform.pagopa.it/it" target="_blank">Stato della piattaforma</a>
+    </nav>
+    <span class="fl">pagoPA</span>
+  </div>
+</footer>

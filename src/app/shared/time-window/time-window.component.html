@@ -1,0 +1,37 @@
+<label class="field">
+  <span>Intervallo</span>
+  <select (change)="choose($event)">
+    @for (preset of presets; track preset.value) {
+      <option [value]="preset.value" [selected]="draftRange() === preset.value">{{ preset.label }}</option>
+    }
+    <option value="custom" [selected]="draftRange() === 'custom'">Personalizzato</option>
+  </select>
+</label>
+@if (draftRange() === 'custom') {
+  <label class="field">
+    <span>Da (UTC)</span>
+    <input
+      type="datetime-local"
+      step="0.001"
+      aria-label="Da (UTC)"
+      [value]="draftFrom()"
+      (input)="edit('from', $event)"
+    />
+  </label>
+  <label class="field">
+    <span>A (UTC)</span>
+    <input
+      type="datetime-local"
+      step="0.001"
+      aria-label="A (UTC)"
+      [value]="draftTo()"
+      (input)="edit('to', $event)"
+    />
+  </label>
+  <button class="btn" type="button" [disabled]="validation().error !== null" (click)="apply()">
+    Applica
+  </button>
+  @if (validation().error; as message) {
+    <p class="validation-error" role="alert">{{ message }}</p>
+  }
+}
