@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_KEY: pagopa_pagopa-shared-toolbox
+  PROJECT_KEY: pagopa_pagopa-nodo-observability
 
 permissions:
   id-token: write
@@ -86,7 +86,10 @@ jobs:
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@master
         with:
-          args: -Dsonar.javascript.lcov.reportPaths=coverage/observability/lcov.info
+          args: >-
+            -Dsonar.projectKey=${{ env.PROJECT_KEY }}
+            -Dsonar.organization=pagopa
+            -Dsonar.javascript.lcov.reportPaths=coverage/observability/lcov.info
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
