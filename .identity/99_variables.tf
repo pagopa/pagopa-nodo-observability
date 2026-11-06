@@ -1,9 +1,8 @@
 locals {
   github = {
     org        = "pagopa"
-    repository = "pagopa-node-cfg-sync"
+    repository = "pagopa-nodo-observability"
   }
-
   prefix         = "pagopa"
   domain         = "nodo"
   location_short = "weu"
