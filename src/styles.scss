@@ -1014,6 +1014,105 @@ a.kpi:hover {
   opacity: 0.75;
 }
 
+.transition-layout > div {
+  min-width: 0;
+}
+
+.transition-layout .num {
+  white-space: nowrap;
+}
+
+.transition-chart {
+  text {
+    fill: var(--muted);
+  }
+
+  .grid {
+    stroke: var(--line);
+  }
+
+  .source-bar {
+    fill: var(--primary);
+  }
+
+  .hatch-background {
+    fill: var(--primary-bg);
+  }
+
+  .hatch-line {
+    stroke: var(--primary);
+    stroke-width: 2.2;
+  }
+}
+
+.source-swatch {
+  background: var(--primary);
+}
+
+.inferred-swatch {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--primary) 0 2px,
+    var(--primary-bg) 2px 5px
+  );
+}
+
+.duration-description {
+  color: var(--muted);
+  font-size: var(--font-size-small);
+  margin-bottom: var(--space-1-5);
+}
+
+.duration-transition {
+  font-family: var(--mono-system);
+  font-size: var(--font-size-small);
+}
+
+.duration-tabs {
+  @include mat.tabs-overrides((
+    active-indicator-color: var(--primary),
+    active-focus-indicator-color: var(--primary),
+    active-hover-indicator-color: var(--primary),
+    active-label-text-color: var(--primary),
+    active-focus-label-text-color: var(--primary),
+    active-hover-label-text-color: var(--primary),
+    inactive-label-text-color: var(--muted),
+    inactive-focus-label-text-color: var(--text),
+    inactive-hover-label-text-color: var(--text),
+    divider-color: var(--line),
+    label-text-font: var(--font-body),
+    label-text-size: var(--font-size-small),
+    label-text-weight: var(--font-weight-semibold),
+    container-height: calc(var(--space-3) * 3),
+  ));
+}
+
+.duration-panel {
+  display: block;
+  margin-top: var(--space-3);
+}
+
+.primitive-direction-group + .primitive-direction-group {
+  margin-top: var(--space-2);
+}
+
+.primitive-direction-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-1);
+
+  h4 {
+    margin: 0;
+    font-size: var(--font-size-small);
+  }
+
+  b {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
 /* ---------- payment detail ---------- */
 .idline {
   display: flex;
