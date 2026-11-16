@@ -16,6 +16,10 @@ export class App {
   readonly timezone = inject(TimezoneService);
   readonly timezoneValue = signal('Europe/Rome');
 
+  logout(): void {
+    void this.auth.logout();
+  }
+
   changeTimezone(value: string): void {
     this.timezoneValue.set(value);
     this.timezone.zone.set(value);

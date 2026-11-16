@@ -68,3 +68,7 @@ variable "tags" {
     CostCenter  = "TS310 - PAGAMENTI & SERVIZI"
   }
 }
+
+variable "entra_client_id" {
+  type = string
+}

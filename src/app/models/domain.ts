@@ -173,7 +173,7 @@ export interface Freshness {
 
 export interface Session {
   id: string;
-  authentication: 'LOCAL_DEMO_ONLY';
+  authentication: 'ENTRA_ID';
 }
 
 export interface Creditor {

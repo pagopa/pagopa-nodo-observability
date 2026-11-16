@@ -10,7 +10,7 @@ import { PaymentsComponent } from './payments.component';
 
 const viewer: Session = {
   id: 'viewer',
-  authentication: 'LOCAL_DEMO_ONLY',
+  authentication: 'ENTRA_ID',
 };
 
 const paymentRow = (index: number, paFiscalCode = '00000000001'): PaymentSummary => ({
@@ -74,7 +74,7 @@ describe('PaymentsComponent token lookup navigation', () => {
         { provide: ObservabilityApi, useValue: api },
         { provide: SessionService, useValue: {
           token: signal('DEMO_OPERATOR'),
-          session: signal({ id: 'operator', authentication: 'LOCAL_DEMO_ONLY' }),
+          session: signal({ id: 'operator', authentication: 'ENTRA_ID' }),
         } },
       ],
     }).compileComponents();
@@ -284,7 +284,7 @@ describe('PaymentsComponent token lookup navigation', () => {
           { provide: ObservabilityApi, useValue: api },
           { provide: SessionService, useValue: {
             token: signal('DEMO_OPERATOR'),
-            session: signal({ id: 'operator', authentication: 'LOCAL_DEMO_ONLY' }),
+            session: signal({ id: 'operator', authentication: 'ENTRA_ID' }),
           } },
         ],
       }).compileComponents();
@@ -544,7 +544,7 @@ describe('PaymentsComponent observation window', () => {
         { provide: ObservabilityApi, useValue: api },
         { provide: SessionService, useValue: {
           token: signal('DEMO_OPERATOR'),
-          session: signal({ id: 'operator', authentication: 'LOCAL_DEMO_ONLY' }),
+          session: signal({ id: 'operator', authentication: 'ENTRA_ID' }),
         } },
       ],
     }).compileComponents();

@@ -40,7 +40,7 @@
   ],
   "security": [
     {
-      "demoBearer": []
+      "entraIdBearer": []
     }
   ],
   "paths": {
@@ -1285,10 +1285,11 @@
   },
   "components": {
     "securitySchemes": {
-      "demoBearer": {
+      "entraIdBearer": {
         "type": "http",
         "scheme": "bearer",
-        "description": "DEMO_VIEWER, DEMO_OPERATOR, DEMO_PA_VIEWER (solo ente 00000000001), DEMO_ADMIN. Solo localhost."
+        "bearerFormat": "JWT",
+        "description": "ID token Azure Entra ID (JWT RS256) acquisito dalla SPA con MSAL: issuer https://login.microsoftonline.com/<tenant>/v2.0, aud = client ID della registrazione SPA. Il backend valida firma (JWKS del tenant), issuer, audience e scadenza; 401 se assente, non valido o scaduto. Il mock locale accetta qualunque bearer in forma JWT senza validarlo, oltre alle credenziali demo DEMO_VIEWER, DEMO_OPERATOR, DEMO_PA_VIEWER, DEMO_ADMIN."
       }
     },
     "parameters": {

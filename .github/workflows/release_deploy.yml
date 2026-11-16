@@ -48,7 +48,7 @@ jobs:
           echo "❌ PR was closed without a merge"
           exit 1
 
-      # Set Semvar
+      # Set Semver
       - run: echo "SEMVER=patch" >> $GITHUB_ENV
 
       - if: ${{ (github.event.pull_request.merged && contains(github.event.pull_request.labels.*.name, 'breaking-change')) }}
@@ -117,6 +117,10 @@ jobs:
       - name: Build
         env:
           API_BASE_URL: ${{ vars.API_BASE_URL }}
+          ENTRA_TENANT_ID: ${{ vars.ENTRA_TENANT_ID }}
+          ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID }}
+          ENTRA_REDIRECT_URI: ${{ vars.ENTRA_REDIRECT_URI }}
+          ENTRA_SCOPES: ${{ vars.ENTRA_SCOPES }}
         run: |
           npm ci
           node scripts/deployment-environment.mjs
@@ -138,12 +142,12 @@ jobs:
           inlineScript: |
             az storage blob sync --container '$web' --account-name ${{ vars.STORAGE_ACCOUNT }} -s "./dist/observability/browser" --destination 'ui/' --connection-string '${{ secrets.BLOB_CONNECTION_STRING }}'
 
-      - name: Purge
-        uses: azure/CLI@4db43908b9df2e7ac93c8275a8f9a448c59338dd # v1
-        with:
-          azcliversion: latest
-          inlineScript: |
-            az afd endpoint purge -g ${{ vars.CDN_RESOURCE_GROUP }} --endpoint-name ${{ vars.CDN_ENDPOINT }} --profile-name ${{ vars.CDN_PROFILE }} --content-paths "/ui" "/ui/*" "/"
+#      - name: Purge
+#        uses: azure/CLI@4db43908b9df2e7ac93c8275a8f9a448c59338dd # v1
+#        with:
+#          azcliversion: latest
+#          inlineScript: |
+#            az afd endpoint purge -g ${{ vars.CDN_RESOURCE_GROUP }} --endpoint-name ${{ vars.CDN_ENDPOINT }} --profile-name ${{ vars.CDN_PROFILE }} --content-paths "/ui" "/ui/*" "/"
 
 #  notify:
 #    needs: [ setup, release, deploy ]

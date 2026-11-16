@@ -11,5 +11,14 @@ import { Environment } from './environment.model';
  */
 export const environment: Environment = {
   production: false,
-  apiBaseUrl: 'http://localhost:8080',
+  // apiBaseUrl: 'http://localhost:8080',
+  apiBaseUrl: 'https://api.dev.platform.pagopa.it/nodo/observability/v1',
+  // Placeholder: impostare tenant e client ID della registrazione SPA (redirect URI http://localhost:4201/).
+  entra: {
+    tenantId: '7788edaf-0346-4068-9d79-c868aed15b3d',
+    clientId: 'b1081b7e-7c1e-4342-8c09-34c2cbcac224',
+    redirectUri: 'http://localhost:3000',
+    // scopes: ['api://pagopa-d-nodo-observability-ui/user_impersonation'],
+    scopes: ['api://pagopa-d-shared-toolbox/user_impersonation'],
+  },
 };

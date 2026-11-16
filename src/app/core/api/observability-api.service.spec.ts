@@ -261,12 +261,31 @@ describe('ObservabilityApi SSE establishment', () => {
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
-        { provide: SessionService, useValue: { token: signal('DEMO_VIEWER') } },
+        { provide: SessionService, useValue: session },
       ],
     });
   });
 
+  const session = { acquireToken: vi.fn(), handleUnauthorized: vi.fn() };
+  beforeEach(() => {
+    session.acquireToken.mockReset().mockResolvedValue('entra.id.token');
+    session.handleUnauthorized.mockReset().mockResolvedValue(undefined);
+  });
+
   afterEach(() => vi.unstubAllGlobals());
+
+  it('authenticates the stream with the Entra ID token and drops the session on 401', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('', { status: 401 }));
+    vi.stubGlobal('fetch', fetch);
+    const api = TestBed.inject(ObservabilityApi);
+
+    await expect(firstValueFrom(api.connect({ scope: 'overview' })))
+      .rejects.toMatchObject<Partial<StreamHttpError>>({ status: 401 });
+
+    expect(session.acquireToken).toHaveBeenCalled();
+    expect(new Headers(fetch.mock.calls[0][1]?.headers).get('Authorization')).toBe('Bearer entra.id.token');
+    expect(session.handleUnauthorized).toHaveBeenCalledTimes(1);
+  });
 
   it('preserves an HTTP 422 status from stream establishment', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 422 })));

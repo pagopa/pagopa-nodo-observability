@@ -7,6 +7,8 @@ import { SCENARIOS } from './scenarios.mjs';
 import { createReDiagnostics } from './re-events.mjs';
 import { createMaintenanceCache, httpMaintenanceFetcher, syntheticMaintenanceFetcher } from './maintenance.mjs';
 
+const ENTRA_JWT_SHAPE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/;
+
 const ROLES = {
   DEMO_VIEWER: { id: 'demo-viewer', role: 'viewer', pa: null, tokens: false, admin: false },
   DEMO_PA_VIEWER: { id: 'demo-pa-viewer', role: 'viewer', pa: '00000000001', tokens: false, admin: false },
@@ -321,8 +323,10 @@ export function createMockServer({ now = Date.now, heartbeatMs = 15_000, replayL
       }
       // No bearer values are accepted in URLs, cookies, logs or event envelopes.
       const credential = req.headers.authorization?.replace(/^Bearer /, '');
-      const user = Object.hasOwn(ROLES, credential ?? '') ? ROLES[credential] : undefined;
-      if (!user || !req.headers.authorization?.startsWith('Bearer ')) fail(401, 'UNAUTHENTICATED', 'Credenziale demo richiesta.');
+      // Entra ID bearer: any JWT-shaped token maps to the operator identity, without signature validation.
+      const user = Object.hasOwn(ROLES, credential ?? '') ? ROLES[credential]
+        : ENTRA_JWT_SHAPE.test(credential ?? '') ? ROLES.DEMO_OPERATOR : undefined;
+      if (!user || !req.headers.authorization?.startsWith('Bearer ')) fail(401, 'UNAUTHENTICATED', 'Token Entra ID (o credenziale demo) richiesto.');
       if (req.headers.origin && req.headers.origin !== `http://${req.headers.host}`) {
         fail(403, 'FORBIDDEN', 'Usare un proxy same-origin locale; CORS disabilitato.');
       }

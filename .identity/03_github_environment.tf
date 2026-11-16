@@ -22,7 +22,7 @@ resource "github_repository_environment" "github_repository_environment" {
 locals {
   env_secrets = {
     "CD_CLIENT_ID" : data.azurerm_user_assigned_identity.identity_cd.client_id,
-    "TENANT_ID" : data.azurerm_client_config.current.tenant_id,
+    "ENTRA_TENANT_ID" : data.azurerm_client_config.current.tenant_id,
     "SUBSCRIPTION_ID" : data.azurerm_subscription.current.subscription_id,
 
     "BLOB_CONNECTION_STRING" : data.azurerm_key_vault_secret.key_vault_blob_connection_string.value
@@ -30,13 +30,17 @@ locals {
   env_variables = {
     "CONTAINER_APP_ENVIRONMENT_NAME" : local.container_app_environment.name,
     "CONTAINER_APP_ENVIRONMENT_RESOURCE_GROUP_NAME" : local.container_app_environment.resource_group,
-    "STORAGE_ACCOUNT" : "pagopa${var.env_short}observabilitysa",
+    "STORAGE_ACCOUNT" : "pagopa${var.env_short}weunodoobsvsa",
 
-    "CDN_RESOURCE_GROUP" : "pagopa-${var.env_short}-weu-nodo-observability-fe-rg", # pagopa-<ENV>-weu-nodo-observability-fe-rg
-    "CDN_ENDPOINT" : "pagopa-${var.env_short}-nodo-observability-cdn-endpoint", # pagopa-<ENV>-nodo-observability-cdn-endpoint
-    "CDN_PROFILE" : "pagopa-${var.env_short}-nodo-observability-cdn-profile", # pagopa-<ENV>-nodo-observability-cdn-profile
+    # "CDN_RESOURCE_GROUP" : "pagopa-${var.env_short}-weu-nodo-observability-fe-rg", # pagopa-<ENV>-weu-nodo-observability-fe-rg
+    # "CDN_ENDPOINT" : "pagopa-${var.env_short}-nodo-observability-cdn-endpoint", # pagopa-<ENV>-nodo-observability-cdn-endpoint
+    # "CDN_PROFILE" : "pagopa-${var.env_short}-nodo-observability-cdn-profile", # pagopa-<ENV>-nodo-observability-cdn-profile
 
     "API_BASE_URL": var.env_short != "p" ? "https://api.${var.env}.platform.pagopa.it/technical-support/ndp/api/v1": "https://api.platform.pagopa.it/technical-support/ndp/api/v1",
+
+    "ENTRA_CLIENT_ID": var.entra_client_id,
+    "ENTRA_REDIRECT_URI": "https://pagopa${var.env_short}weunodoobsvsa.z6.web.core.windows.net/"
+    "ENTRA_SCOPES": "api://${var.prefix}-${var.env_short}-nodo-observability-ui/user_impersonation",  // TODO set nodo-observability scopes
 
     # "CLUSTER_NAME" : local.aks_cluster.name,
     # "CLUSTER_RESOURCE_GROUP" : local.aks_cluster.resource_group_name,

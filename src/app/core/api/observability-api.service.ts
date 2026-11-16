@@ -171,7 +171,6 @@ export class ObservabilityApi {
       let lastEventId: string | null = null;
       let replayExpired = false;
       let suspended = false;
-      const getToken = () => this.sessionService.token();
       let retryDelay = 500;
       const seen = new Set<string>();
       const run = async (activeController: AbortController): Promise<void> => {
@@ -181,9 +180,11 @@ export class ObservabilityApi {
             for (const [key, value] of Object.entries(scope)) {
               if (typeof value === 'string' && value.length > 0) params.set(key, value);
             }
+            const token = await this.sessionService.acquireToken();
+            if (activeController.signal.aborted) return;
             const response = await fetch(`${this.base}/api/events?${params}`, {
               headers: {
-                Authorization: `Bearer ${getToken()}`,
+                Authorization: `Bearer ${token}`,
                 ...(lastEventId ? { 'Last-Event-ID': lastEventId } : {}),
                 'X-Correlation-ID': crypto.randomUUID(),
               },
@@ -202,6 +203,7 @@ export class ObservabilityApi {
                 retryDelay = Math.min(retryDelay * 2, 8_000);
                 continue;
               }
+              if (response.status === 401) void this.sessionService.handleUnauthorized();
               subscriber.error(new StreamHttpError(response.status));
               return;
             }

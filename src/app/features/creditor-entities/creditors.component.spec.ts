@@ -22,7 +22,7 @@ const page = (items: Creditor[], nextCursor: string | null = null): Page<Credito
 });
 const viewer: Session = {
   id: 'viewer',
-  authentication: 'LOCAL_DEMO_ONLY',
+  authentication: 'ENTRA_ID',
 };
 const paViewer: Session = {
   ...viewer,

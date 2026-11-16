@@ -7,7 +7,7 @@
     "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
   },
   "scripts": {
-    "start": "ng serve --port 4201",
+    "start": "ng serve --port 3000",
     "ng": "ng",
     "build": "ng build",
     "lint": "ng lint",
@@ -25,6 +25,7 @@
     "@angular/material": "^22.2.3",
     "@angular/platform-browser": "^22.2.0",
     "@angular/router": "^22.2.0",
+    "@azure/msal-browser": "^5.29.1",
     "@fontsource/dm-mono": "^5.3.0",
     "@fontsource/titillium-web": "^5.3.0",
     "rxjs": "~7.8.0",

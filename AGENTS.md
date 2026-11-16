@@ -17,7 +17,7 @@ Linee guida per agenti e sviluppatori che lavorano sul frontend della piattaform
   - Etichette uguali su entità diverse (es. `NOTICE_SENT`, `NOTIFIED`) vanno attribuite all'entità indicata dall'evento.
 - Vincoli di prodotto:
   - Warning **solo visivi**, visibili finché lo stato non è risolto. Nessuna notifica esterna.
-  - Il `paymentToken` in chiaro è visibile a **tutti gli utenti** della console (policy approvata il 22 ottobre 2026, supera la divergenza D-01): nessun mascheramento per ruolo. In questa fase non è previsto IAM; l'accesso è libero e `reveal`/`token-lookup` restano disponibili senza controllo di capacità.
+  - Il `paymentToken` in chiaro è visibile a **tutti gli utenti** della console (policy approvata il 22 ottobre 2026, supera la divergenza D-01): nessun mascheramento per ruolo. L'accesso richiede l'autenticazione Azure Entra ID, ma non ci sono ruoli: `reveal`/`token-lookup` restano disponibili a ogni utente autenticato senza controllo di capacità.
   - Nessun payload completo di evento né dati di pagamento aggiuntivi nelle viste della proiezione. Eccezione approvata il 23 ottobre 2026: consultazione diagnostica RE separata dalla proiezione (modale on demand con tutti i campi; cronologia primitive del tentativo, senza payload, caricata in automatico nel dettaglio dal 2 novembre 2026; consultazione RE della posizione per PA + NAV senza token, solo su richiesta), con tutti i campi e payload Base64 decodificato come testo, senza persistenza nella proiezione o nei log. Piano: `docs/superpowers/plans/2026-10-23-recupero-tentativo-re.md`.
   - Retention 60 giorni per tentativo: la UI deve gestire con grazia dati scaduti/assenti.
 
@@ -69,7 +69,7 @@ src/app/
 
 ## Sicurezza e ruoli
 
-- In questa fase non c'è IAM: la `SessionService` mantiene un'identità demo fissa e la guard verifica solo la presenza della sessione locale. Nessun mascheramento di `paymentToken` (vedi Vincoli di prodotto). Mantenere comunque il punto unico di accesso alla sessione per un futuro aggancio IAM.
+- Autenticazione: **Azure Entra ID** con `@azure/msal-browser` (caricato in lazy; niente `@azure/msal-angular`), login con redirect dalla pagina `/login` ("Accedi con Microsoft"). Configurazione in `environment*.ts` → `entra` (`tenantId`, `clientId`, `redirectUri` vuoto = URL base dell'app, `scopes`); deploy tramite `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_REDIRECT_URI`, `ENTRA_SCOPES` (`scripts/deployment-environment.mjs`). `SessionService` (`core/auth`) è il punto unico di accesso alla sessione: account MSAL in `localStorage` (cache MSAL), `acquireToken()` restituisce l'**ID token** (aud = client ID) via `acquireTokenSilent` con fallback al login. `sessionGuard` protegge tutte le rotte con redirect a `/login?callbackUrl=...`; `authInterceptor` e lo stream SSE inviano `Authorization: Bearer <ID token>` e su 401 eseguono `handleUnauthorized()` (pulizia sessione locale + ritorno a `/login`). Il backend valida direttamente il token Entra; nessuna restrizione di ruolo. Nei test usare `provideFakeMsal()` (`core/auth/testing/fake-msal.ts`). Nessun mascheramento di `paymentToken` (vedi Vincoli di prodotto).
 - Il controllo lato client è solo UX: l'autorizzazione reale, quando introdotta, sarà lato backend.
 - Nessun `innerHTML` non sanitizzato; non bypassare il `DomSanitizer` senza motivazione documentata.
 

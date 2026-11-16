@@ -87,6 +87,19 @@ test('health, me, freshness for every role', T, () => withServer({}, async h => 
   assert.equal(fresh.observedAt, '2026-10-16T10:00:00.000Z');
 }));
 
+test('an Entra ID JWT-shaped bearer is accepted without validation as the operator identity', T, () => withServer({}, async h => {
+  const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJjbGllbnQifQ.c2lnbmF0dXJl';
+  const me = await h.get('/api/me', { token: jwt });
+  assert.equal(me.status, 200);
+  assert.equal(me.json.id, 'demo-operator');
+  assert.equal((await h.get('/api/payments', { token: jwt })).status, 200);
+  for (const token of ['eyJhbGciOiJSUzI1NiJ9.only-two', 'a.b.c.d', 'a b.c.d']) {
+    assert.equal((await h.get('/api/me', { token })).status, 401, token);
+  }
+  const events = await h.open({ scope: 'overview' }, { token: jwt });
+  assert.equal(events.status, 200);
+}));
+
 test('missing, unknown and malformed credentials get 401 on every business endpoint', T, () => withServer({}, async h => {
   const endpoints = ['/api/me', '/api/catalog', '/api/serviceIdentifiers', '/api/freshness', '/api/payments', '/api/attempts',
     `/api/payments/${PA1}/${notice(1)}`, '/api/overview', '/api/overview/primitive-warnings?primitive=pspNotifyPayment', '/api/creditors', `/api/creditors/${PA1}`,

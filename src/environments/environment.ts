@@ -9,4 +9,11 @@ import { Environment } from './environment.model';
 export const environment: Environment = {
   production: true,
   apiBaseUrl: '',
+  // Placeholder: nelle build di deploy i valori arrivano da ENTRA_* (scripts/deployment-environment.mjs).
+  entra: {
+    tenantId: 'REPLACE_WITH_ENTRA_TENANT_ID',
+    clientId: 'REPLACE_WITH_ENTRA_CLIENT_ID',
+    redirectUri: '',
+    scopes: [],
+  },
 };
