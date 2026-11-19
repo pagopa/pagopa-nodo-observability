@@ -486,6 +486,11 @@ export class OverviewComponent implements OnInit {
           this.resync();
           return;
         }
+        if (event.type === 'stalled') {
+          this.connection.set('Stream senza risposta; dati dallo snapshot');
+          if (!this.snapshotInitialized && !this.snapshotAcquiring) this.loadSnapshot();
+          return;
+        }
         const data = JSON.parse(event.data) as AggregateEvent;
         this.streamLive.set(true);
         if (data.type === 'ready') {

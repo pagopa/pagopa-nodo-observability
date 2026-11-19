@@ -200,6 +200,11 @@ export class CreditorDetailComponent implements OnInit {
           this.resync();
           return;
         }
+        if (event.type === 'stalled') {
+          this.connection.set('Stream senza risposta; dati dallo snapshot');
+          if (!this.snapshotInitialized && !this.snapshotAcquiring) this.loadSnapshot();
+          return;
+        }
         const data = JSON.parse(event.data) as CreditorDelta;
         if (data.type === 'ready') {
           this.connection.set('Stream attivo');

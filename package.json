@@ -7,7 +7,7 @@
     "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
   },
   "scripts": {
-    "start": "ng serve --port 3000",
+    "start": "ng serve --port 4201",
     "ng": "ng",
     "build": "ng build",
     "lint": "ng lint",

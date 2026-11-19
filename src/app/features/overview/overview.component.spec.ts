@@ -1526,6 +1526,48 @@ describe('OverviewComponent snapshot reconciliation', () => {
   });
 });
 
+describe('OverviewComponent stalled stream', () => {
+  it('loads the snapshot without the ready event when the stream stalls, and shows it as not live', async () => {
+    const stream = new Subject<MessageEvent<string>>();
+    const api = {
+      nodeServices: vi.fn(() => of({ checkedAt: '2026-11-04T13:10:36.723Z', nodes: [] })),
+      connect: vi.fn(() => stream),
+      overview: vi.fn(() => of(snapshot(1, 10))),
+      primitiveWarnings: vi.fn(() => of({ items: [], nextCursor: null })),
+      catalogWithServiceIdentifiers: vi.fn(() => of({ serviceIdentifiers: [] })),
+    };
+    await TestBed.configureTestingModule({
+      imports: [OverviewComponent],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        { provide: ActivatedRoute, useValue: { queryParamMap: of(convertToParamMap({ window: '7d' })) } },
+        { provide: ObservabilityApi, useValue: api },
+        { provide: SessionService, useValue: { token: signal('DEMO_VIEWER') } },
+        { provide: TimezoneService, useValue: { zone: () => 'UTC' } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(OverviewComponent);
+    await fixture.whenStable();
+    const text = (): string => (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text()).toContain('Caricamento dei dati della finestra selezionata');
+    expect(api.overview).not.toHaveBeenCalled();
+
+    stream.next(new MessageEvent('stalled'));
+    await fixture.whenStable();
+
+    expect(api.overview).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.loading()).toBe(false);
+    expect(text()).not.toContain('Caricamento dei dati della finestra selezionata');
+    expect(text()).toContain('NON AGGIORNATO');
+
+    stream.next(new MessageEvent('message', { data: JSON.stringify({ type: 'ready' }) }));
+    await fixture.whenStable();
+    expect(api.overview).toHaveBeenCalledTimes(1);
+    fixture.destroy();
+  });
+});
+
 describe('OverviewComponent service identifier catalog', () => {
   const createFixture = async (
     api: { catalogWithServiceIdentifiers: ReturnType<typeof vi.fn>; connect: ReturnType<typeof vi.fn>; overview: ReturnType<typeof vi.fn> },

@@ -11,4 +11,4 @@ tags = {
   CostCenter  = "TS310 - PAGAMENTI & SERVIZI"
 }
 
-entra_client_id = "b1081b7e-7c1e-4342-8c09-34c2cbcac224"
+entra_client_id = "37cf8cca-a086-4828-a115-26367dd4c00f"

@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { Catalog } from '../../models/domain';
-import { ObservabilityApi, StreamHttpError } from './observability-api.service';
+import { ObservabilityApi, STREAM_IDLE_TIMEOUT_MS, STREAM_STALL_TIMEOUT_MS, StreamHttpError } from './observability-api.service';
 import { SessionService } from '../auth/session.service';
 import { RE_FIELDS } from '../../models/re-event';
 
@@ -285,6 +285,104 @@ describe('ObservabilityApi SSE establishment', () => {
     expect(session.acquireToken).toHaveBeenCalled();
     expect(new Headers(fetch.mock.calls[0][1]?.headers).get('Authorization')).toBe('Bearer entra.id.token');
     expect(session.handleUnauthorized).toHaveBeenCalledTimes(1);
+  });
+
+  it('signals a stalled stream when a buffering intermediary withholds every event', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)));
+      const api = TestBed.inject(ObservabilityApi);
+      const events: string[] = [];
+      const subscription = api.connect({ scope: 'overview' }).subscribe(event => events.push(event.type));
+
+      await vi.advanceTimersByTimeAsync(STREAM_STALL_TIMEOUT_MS - 1);
+      expect(events).toEqual([]);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(events).toEqual(['stalled']);
+      subscription.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not signal a stalled stream once an event has arrived', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(
+        new ReadableStream({ start: controller => controller.enqueue(new TextEncoder().encode('event: ready\ndata: {"type":"ready"}\n\n')) }),
+        { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+      ))));
+      const api = TestBed.inject(ObservabilityApi);
+      const events: string[] = [];
+      const subscription = api.connect({ scope: 'overview' }).subscribe(event => events.push(event.type));
+
+      await vi.advanceTimersByTimeAsync(STREAM_STALL_TIMEOUT_MS * 2);
+      expect(events).toEqual(['ready']);
+      subscription.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps the stream open while keepalive comments arrive, without emitting them', async () => {
+    vi.useFakeTimers();
+    try {
+      const encoder = new TextEncoder();
+      let push: ((chunk: string) => void) | undefined;
+      const fetch = vi.fn(() => Promise.resolve(new Response(
+        new ReadableStream<Uint8Array>({
+          start: controller => {
+            push = chunk => controller.enqueue(encoder.encode(chunk));
+            push('id: event-1\nevent: ready\ndata: {"type":"ready"}\n\n');
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+      )));
+      vi.stubGlobal('fetch', fetch);
+      const api = TestBed.inject(ObservabilityApi);
+      const events: string[] = [];
+      const subscription = api.connect({ scope: 'overview' }).subscribe(event => events.push(event.type));
+
+      for (let i = 0; i < 4; i++) {
+        await vi.advanceTimersByTimeAsync(STREAM_IDLE_TIMEOUT_MS - 1_000);
+        push?.(': keepalive\n\n');
+      }
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      expect(events).toEqual(['ready']);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      subscription.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reconnects with Last-Event-ID when neither events nor keepalives arrive', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetch = vi.fn(() => Promise.resolve(new Response(
+        new ReadableStream<Uint8Array>({
+          start: controller => controller.enqueue(new TextEncoder().encode('id: event-1\nevent: ready\ndata: {"type":"ready"}\n\n')),
+        }),
+        { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+      )));
+      vi.stubGlobal('fetch', fetch);
+      const api = TestBed.inject(ObservabilityApi);
+      const events: string[] = [];
+      const subscription = api.connect({ scope: 'overview' }).subscribe(event => events.push(event.type));
+
+      await vi.advanceTimersByTimeAsync(STREAM_IDLE_TIMEOUT_MS - 1);
+      expect(events).toEqual(['ready']);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(events).toEqual(['ready', 'connection-error']);
+      await vi.advanceTimersByTimeAsync(500);
+
+      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(new Headers((fetch.mock.calls[1] as unknown as [string, RequestInit])[1].headers).get('Last-Event-ID')).toBe('event-1');
+      subscription.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('preserves an HTTP 422 status from stream establishment', async () => {

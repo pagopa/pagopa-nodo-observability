@@ -182,6 +182,11 @@ export class PaymentDetailComponent implements OnInit, OnDestroy {
           this.resync();
           return;
         }
+        if (event.type === 'stalled') {
+          this.connection.set('Stream senza risposta; dati dallo snapshot');
+          if (!this.snapshotInitialized && !this.snapshotAcquiring) this.loadSnapshot();
+          return;
+        }
         const value = JSON.parse(event.data) as PaymentDelta & { type: string };
         if (value.type === 'ready') {
           this.connection.set('Stream attivo');

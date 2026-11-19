@@ -38,6 +38,19 @@ export type EventScope = { scope: 'payment'; paFiscalCode: string; noticeNumber:
   | ({ scope: 'creditor'; paFiscalCode: string } & Filters)
   | ({ scope: 'station'; paFiscalCode: string; stazione: string } & Filters);
 
+/**
+ * Without any SSE event within this delay, `connect()` emits a `stalled` event: an intermediary
+ * that buffers the response (e.g. a gateway) would otherwise keep views waiting for `ready` forever.
+ */
+export const STREAM_STALL_TIMEOUT_MS = 5_000;
+
+/**
+ * The backend writes a `: keepalive` SSE comment every 30–60 s. Without any byte (event or comment)
+ * within this delay the socket is considered dead (e.g. dropped silently by a proxy): `connect()`
+ * emits `connection-error` and reconnects with `Last-Event-ID`.
+ */
+export const STREAM_IDLE_TIMEOUT_MS = 90_000;
+
 export class StreamHttpError extends Error {
   constructor(readonly status: number) {
     super(`Stream SSE non disponibile (${status}).`);
@@ -172,6 +185,15 @@ export class ObservabilityApi {
       let replayExpired = false;
       let suspended = false;
       let retryDelay = 500;
+      let stallTimer: ReturnType<typeof setTimeout> | undefined;
+      const clearStall = (): void => {
+        clearTimeout(stallTimer);
+        stallTimer = undefined;
+      };
+      const armStall = (): void => {
+        clearStall();
+        stallTimer = setTimeout(() => subscriber.next(new MessageEvent('stalled')), STREAM_STALL_TIMEOUT_MS);
+      };
       const seen = new Set<string>();
       const run = async (activeController: AbortController): Promise<void> => {
         while (!activeController.signal.aborted) {
@@ -218,10 +240,20 @@ export class ObservabilityApi {
             let eventName = 'message';
             let eventId = '';
             let data: string[] = [];
+            let idleTimedOut = false;
+            let idleTimer: ReturnType<typeof setTimeout> | undefined;
+            const armIdle = (): void => {
+              clearTimeout(idleTimer);
+              idleTimer = setTimeout(() => {
+                idleTimedOut = true;
+                void reader.cancel().catch(() => undefined);
+              }, STREAM_IDLE_TIMEOUT_MS);
+            };
             const dispatch = (): void => {
               if (!data.length) return;
               if (eventId) lastEventId = eventId;
               const id = eventId;
+              clearStall();
               if (!id || !seen.has(id)) {
                 if (id) {
                   seen.add(id);
@@ -233,8 +265,10 @@ export class ObservabilityApi {
               eventId = '';
               data = [];
             };
+            armIdle();
             while (!activeController.signal.aborted) {
-              const { value, done } = await reader.read();
+              const { value, done } = await reader.read().finally(() => clearTimeout(idleTimer));
+              if (!done) armIdle();
               pending += decoder.decode(value, { stream: !done });
               const lines = pending.split(/\r?\n/);
               pending = lines.pop() ?? '';
@@ -251,7 +285,9 @@ export class ObservabilityApi {
               }
               if (done) break;
             }
+            clearTimeout(idleTimer);
             await reader.cancel().catch(() => undefined);
+            if (idleTimedOut && !activeController.signal.aborted) subscriber.next(new MessageEvent('connection-error'));
           } catch {
             if (activeController.signal.aborted) return;
             subscriber.next(new MessageEvent('connection-error'));
@@ -265,20 +301,24 @@ export class ObservabilityApi {
       const pageTarget = typeof window === 'undefined' ? null : window;
       const suspend = (): void => {
         suspended = true;
+        clearStall();
         controller.abort();
       };
       const resume = (): void => {
         if (!suspended || subscriber.closed) return;
         suspended = false;
         controller = new AbortController();
+        armStall();
         void run(controller);
       };
       pageTarget?.addEventListener('pagehide', suspend);
       pageTarget?.addEventListener('pageshow', resume);
+      armStall();
       void run(controller);
       return () => {
         pageTarget?.removeEventListener('pagehide', suspend);
         pageTarget?.removeEventListener('pageshow', resume);
+        clearStall();
         controller.abort();
       };
     });
