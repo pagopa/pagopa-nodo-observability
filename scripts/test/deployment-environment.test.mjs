@@ -59,3 +59,13 @@ test('rejects missing or malformed Entra ID settings', () => {
   }
   assert.throws(() => createEntraConfig({ ...ENTRA, scopes: 'ok "bad"' }), /ENTRA_SCOPES/);
 });
+
+// Regression: an unset pipeline variable must be reported as missing, not as malformed.
+test('reports unset Entra ID settings as missing', () => {
+  for (const tenantId of [undefined, '', '  ']) {
+    assert.throws(() => createEntraConfig({ ...ENTRA, tenantId }), /ENTRA_TENANT_ID is not set/);
+  }
+  for (const clientId of [undefined, '', '  ']) {
+    assert.throws(() => createEntraConfig({ ...ENTRA, clientId }), /ENTRA_CLIENT_ID is not set/);
+  }
+});

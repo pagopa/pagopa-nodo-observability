@@ -17,10 +17,16 @@ const SCOPE = /^[A-Za-z0-9._:/-]+$/;
  */
 export function createEntraConfig({ tenantId, clientId, redirectUri, scopes } = {}) {
   const tenant = typeof tenantId === 'string' ? tenantId.trim() : '';
+  if (!tenant) {
+    throw new Error('ENTRA_TENANT_ID is not set: provide it to the build environment.');
+  }
   if (!GUID.test(tenant) && !TENANT_DOMAIN.test(tenant)) {
     throw new Error('ENTRA_TENANT_ID must be a tenant GUID or a verified domain.');
   }
   const client = typeof clientId === 'string' ? clientId.trim() : '';
+  if (!client) {
+    throw new Error('ENTRA_CLIENT_ID is not set: provide it to the build environment.');
+  }
   if (!GUID.test(client)) {
     throw new Error('ENTRA_CLIENT_ID must be the application (client) GUID.');
   }

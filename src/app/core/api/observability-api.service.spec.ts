@@ -7,6 +7,7 @@ import { Catalog } from '../../models/domain';
 import { ObservabilityApi, STREAM_IDLE_TIMEOUT_MS, STREAM_STALL_TIMEOUT_MS, StreamHttpError } from './observability-api.service';
 import { SessionService } from '../auth/session.service';
 import { RE_FIELDS } from '../../models/re-event';
+import { apiPath } from './testing/api-path';
 
 describe('ObservabilityApi catalog', () => {
   let httpTesting: HttpTestingController;
@@ -31,7 +32,7 @@ describe('ObservabilityApi catalog', () => {
   });
 
   const expectPath = (path: string) =>
-    httpTesting.expectOne(request => new URL(request.url).pathname === path);
+    httpTesting.expectOne(request => new URL(request.url, location.origin).pathname === apiPath(path));
 
   it('reads the Nodo microservices from the cache version endpoint', async () => {
     const response = { checkedAt: '2026-11-04T13:10:36.723Z', nodes: [{

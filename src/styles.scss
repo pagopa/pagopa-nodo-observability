@@ -269,6 +269,16 @@ main.wrap {
   color: var(--muted);
 }
 
+.footer-r {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.footer .version {
+  color: var(--muted);
+}
+
 .footer .fl {
   color: var(--muted);
   font-weight: 700;

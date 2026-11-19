@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { apiPath } from '../../core/api/testing/api-path';
 import { MaintenanceComponent } from './maintenance.component';
 
 const payload = (items: unknown[], stale = false) => ({
@@ -17,7 +18,7 @@ describe('MaintenanceComponent', () => {
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     const fixture = TestBed.createComponent(MaintenanceComponent);
     fixture.detectChanges();
-    const request = TestBed.inject(HttpTestingController).expectOne(r => new URL(r.url).pathname === '/api/apiconfig/maintenances');
+    const request = TestBed.inject(HttpTestingController).expectOne(r => new URL(r.url, location.origin).pathname === apiPath('/api/apiconfig/maintenances'));
     return { fixture, request, text: () => (fixture.nativeElement as HTMLElement).textContent ?? '' };
   }
 

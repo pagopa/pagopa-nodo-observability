@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { SessionService } from './core/auth/session.service';
 import { TimezoneService } from './core/timezone.service';
+import { version } from '../../package.json';
 
 @Component({
   selector: 'app-root',
@@ -15,6 +16,7 @@ export class App {
   readonly auth = inject(SessionService);
   readonly timezone = inject(TimezoneService);
   readonly timezoneValue = signal('Europe/Rome');
+  readonly version = version;
 
   logout(): void {
     void this.auth.logout();

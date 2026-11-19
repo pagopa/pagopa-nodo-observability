@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { version } from '../../package.json';
 import { App } from './app';
 import { SessionService } from './core/auth/session.service';
 import { FakeMsal, provideFakeMsal, testAccount } from './core/auth/testing/fake-msal';
@@ -23,6 +24,13 @@ describe('App shell', () => {
     const content = fixture.nativeElement as HTMLElement;
     expect(content.querySelector('nav[aria-label="Navigazione principale"]')).toBeNull();
     expect(content.textContent).not.toContain('Esci');
+  });
+
+  it('shows the package.json version in the footer', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const footer = (fixture.nativeElement as HTMLElement).querySelector('footer');
+    expect(footer?.textContent).toContain(`Versione ${version}`);
   });
 
   it('renders the shell navigation with the Entra ID user and logs out', async () => {
