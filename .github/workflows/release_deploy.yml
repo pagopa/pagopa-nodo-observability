@@ -136,25 +136,18 @@ jobs:
           subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
 
       - name: Deploy ${{ needs.setup.outputs.environment }}
-        uses: azure/CLI@4db43908b9df2e7ac93c8275a8f9a448c59338dd # v1
-        with:
-          azcliversion: latest
-          inlineScript: |
-            az storage blob sync --container '$web' --account-name ${{ vars.STORAGE_ACCOUNT }} -s "./dist/observability/browser" --destination 'ui/' --connection-string '${{ secrets.BLOB_CONNECTION_STRING }}'
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_CONNECTION_STRING }}
+          AZURE_STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
+        run: |
+          az storage blob sync --container '$web' -s "./dist/observability/browser" --destination 'ui/'
 
       - name: Deploy static pages ${{ needs.setup.outputs.environment }}
-        uses: azure/CLI@4db43908b9df2e7ac93c8275a8f9a448c59338dd # v1
-        with:
-          azcliversion: latest
-          inlineScript: |
-            az storage blob sync --container '$web' --account-name ${{ vars.STORAGE_ACCOUNT }} -s "./static" --destination '/' --delete-destination false --connection-string '${{ secrets.BLOB_CONNECTION_STRING }}'
-
-#      - name: Purge
-#        uses: azure/CLI@4db43908b9df2e7ac93c8275a8f9a448c59338dd # v1
-#        with:
-#          azcliversion: latest
-#          inlineScript: |
-#            az afd endpoint purge -g ${{ vars.CDN_RESOURCE_GROUP }} --endpoint-name ${{ vars.CDN_ENDPOINT }} --profile-name ${{ vars.CDN_PROFILE }} --content-paths "/ui" "/ui/*" "/"
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_CONNECTION_STRING }}
+          AZURE_STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
+        run: |
+          az storage blob sync --container '$web' -s "./static" --destination '/' --delete-destination false
 
 #  notify:
 #    needs: [ setup, release, deploy ]

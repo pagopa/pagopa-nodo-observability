@@ -12,10 +12,11 @@ runner labelled with the resolved environment (`dev` by default, or `uat` or
 `dist/observability/browser` to `$web/ui/`, and uploads `static/` to the root
 without deleting other blobs. The Front Door purge step is currently disabled.
 
-The runner must have Docker available for `azure/CLI` and network access to the
-storage account's Blob private endpoint. Its DNS must resolve the normal Blob
-hostname to that private endpoint; a storage connection string supplies
-credentials but does not provide private network access.
+The runner must have Azure CLI installed and network access to the storage
+account's Blob private endpoint. The sync command also needs AzCopy installed
+or access to download it. Its DNS must resolve the normal Blob hostname to the
+private endpoint; a storage connection string supplies credentials but does
+not provide private network access.
 
 ## GitHub configuration
 
