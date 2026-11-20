@@ -6,9 +6,16 @@ workflow runs the Angular build, lint, unit tests, contract tests, and Sonar
 analysis for pull requests and pushes to `main`.
 
 The `release_deploy` workflow retains the existing release triggers and
-environment/version selection. It builds with Node.js 24 and npm, then syncs
-`dist/observability/browser` to `$web/ui/` and purges the corresponding Azure
-Front Door paths.
+environment/version selection. The deploy job runs on the `self-hosted-job`
+runner labelled with the resolved environment (`dev` by default, or `uat` or
+`prod`). It builds with Node.js 24 and npm, syncs
+`dist/observability/browser` to `$web/ui/`, and uploads `static/` to the root
+without deleting other blobs. The Front Door purge step is currently disabled.
+
+The runner must have Docker available for `azure/CLI` and network access to the
+storage account's Blob private endpoint. Its DNS must resolve the normal Blob
+hostname to that private endpoint; a storage connection string supplies
+credentials but does not provide private network access.
 
 ## GitHub configuration
 

@@ -97,7 +97,7 @@ jobs:
           skip_ci: false
 
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted-job, "${{ needs.setup.outputs.environment }}"]
     needs: [setup, release]
     name: Deploy ${{ needs.setup.outputs.environment }}
     environment: ${{ needs.setup.outputs.environment }}
@@ -141,6 +141,13 @@ jobs:
           azcliversion: latest
           inlineScript: |
             az storage blob sync --container '$web' --account-name ${{ vars.STORAGE_ACCOUNT }} -s "./dist/observability/browser" --destination 'ui/' --connection-string '${{ secrets.BLOB_CONNECTION_STRING }}'
+
+      - name: Deploy static pages ${{ needs.setup.outputs.environment }}
+        uses: azure/CLI@4db43908b9df2e7ac93c8275a8f9a448c59338dd # v1
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az storage blob sync --container '$web' --account-name ${{ vars.STORAGE_ACCOUNT }} -s "./static" --destination '/' --delete-destination false --connection-string '${{ secrets.BLOB_CONNECTION_STRING }}'
 
 #      - name: Purge
 #        uses: azure/CLI@4db43908b9df2e7ac93c8275a8f9a448c59338dd # v1
