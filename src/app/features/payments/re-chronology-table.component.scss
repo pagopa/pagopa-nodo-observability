@@ -1,0 +1,110 @@
+:host {
+  display: block;
+}
+
+.trace-table {
+  max-block-size: 32rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+table {
+  margin: 0;
+}
+
+thead th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  background: var(--soft);
+  box-shadow: 0 1px 0 var(--line-strong);
+}
+
+td:first-child {
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: var(--font-size-small);
+  font-variant-numeric: tabular-nums;
+}
+
+code {
+  overflow-wrap: anywhere;
+}
+
+caption {
+  caption-side: top;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  color: var(--muted);
+  font-size: var(--font-size-small);
+  background: var(--surface);
+}
+
+.state-row {
+  background: var(--soft);
+}
+
+.state-row td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.entity {
+  display: inline-block;
+  min-inline-size: 6.5rem;
+  color: var(--muted);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+}
+
+.unanswered,
+.fault {
+  background: var(--warn-bg);
+}
+
+.unanswered td:first-child,
+.fault td:first-child {
+  box-shadow: inset 3px 0 0 var(--warn-line);
+}
+
+.flag {
+  margin-inline-start: var(--space-1-5);
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.outcome {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ko-detail {
+  margin-inline-start: var(--space-1-5);
+}
+
+details.ko-detail {
+  display: inline-block;
+  vertical-align: top;
+  font-weight: 400;
+}
+
+summary {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.body {
+  margin: var(--space-1-5) 0 0;
+  padding: var(--space-1-5);
+  min-inline-size: 16rem;
+  max-inline-size: 36rem;
+  max-block-size: 15rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-family: var(--mono);
+  font-size: var(--font-size-small);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

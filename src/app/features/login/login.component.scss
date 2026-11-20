@@ -1,0 +1,24 @@
+.login {
+  max-width: 560px;
+  margin: var(--space-6) auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.ms-r {
+  fill: var(--ms-logo-red);
+}
+
+.ms-g {
+  fill: var(--ms-logo-green);
+}
+
+.ms-b {
+  fill: var(--ms-logo-blue);
+}
+
+.ms-y {
+  fill: var(--ms-logo-yellow);
+}

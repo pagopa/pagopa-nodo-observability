@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dettaglio pagamento · Osservabilità pagamenti</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/app.js"></script>
+<script src="assets/re-detail.js" defer></script>
+<script src="assets/payment-detail.js" defer></script>
+</head>
+<body data-page="pay">
+<main class="wrap">
+  <a class="crumb" href="02-pagamenti.html"><i data-i="back"></i>Pagamenti</a>
+  <div class="note acceptance-note"><i data-i="info"></i><div><strong>Anteprima per accettazione.</strong> Scenari sintetici del disegno del 23 ottobre 2026. Storia osservata e percorsi documentati sono separati; nessun collegamento a sistemi reali. <a href="panoramica.html#acceptance">Apri il catalogo dei 9 scenari.</a></div></div>
+  <div id="head"></div>
+  <div id="banners" class="banners" aria-live="polite"></div>
+  <section class="section section-compact" aria-labelledby="relation-heading">
+    <div class="sh"><div><h2 id="relation-heading">Una posizione, più tentativi</h2><p class="sub">La coppia codice fiscale EC + NAV identifica il pagamento logico; ogni token identifica un tentativo distinto.</p></div></div>
+    <div id="relationships"></div>
+  </section>
+  <div id="semantics"></div>
+  <section class="section" aria-labelledby="logical-heading">
+    <div class="sh"><div><h2 id="logical-heading">Pagamento logico · posizione</h2><p class="sub">Stato fornito dalla posizione, non calcolato dagli esiti dei tentativi.</p></div></div>
+    <div id="logical"></div>
+  </section>
+  <section class="section" aria-labelledby="att-title">
+    <div class="sh"><div><h2 id="att-title">Tentativi disponibili in retention</h2><p class="sub">Storie indipendenti. Un annullamento non elimina gli altri token e non riapre il tentativo annullato.</p></div></div>
+    <div id="attempts"></div>
+  </section>
+  <section class="section" aria-labelledby="recipient-heading">
+    <div class="sh"><div><h2 id="recipient-heading">Destinatari ricevuta · contesto della posizione</h2><p class="sub">FSM separata. Una risposta valida può avere outcome applicativo KO.</p></div></div>
+    <div id="recipients"></div>
+  </section>
+  <section class="section section-compact" aria-label="Legenda della storia">
+    <div class="legend state-legend">
+      <span><i class="swatch reached"></i>Osservato nella storia di esempio</span>
+      <span><i class="swatch inferred"></i>Inferito · data-ora stimata</span>
+      <span><i class="swatch warning"></i>Non risolto · warning visivo</span>
+      <span><i class="swatch pending"></i>Possibile nello schema · non è un evento</span>
+    </div>
+    <p class="small muted">Ordine delle transizioni fornito dal servizio. Nessun riordino per data-ora e nessuna correlazione causale ricavata dalla vicinanza temporale.</p>
+  </section>
+</main>
+<dialog id="re-dialog" class="re-dialog" aria-labelledby="re-title" aria-describedby="re-description">
+  <header class="re-header">
+    <div><p class="small muted">Registro eventi · Azure Data Explorer</p><h2 id="re-title">Dettaglio tentativo da RE</h2></div>
+    <button id="re-close" class="btn o" type="button" autofocus>Chiudi</button>
+  </header>
+  <div class="re-content">
+    <p id="re-description" class="note"><strong>Mockup · dati sintetici.</strong> Nessun accesso a RE reale. Consultazione diagnostica separata: non modifica stati, timeline o Check DB.</p>
+    <dl id="re-context" class="re-context"></dl>
+    <form id="re-form" class="re-form">
+      <label class="field"><span>Da · UTC (incluso)</span><input id="re-from" type="datetime-local" step="1" required></label>
+      <label class="field"><span>A · UTC (escluso)</span><input id="re-to" type="datetime-local" step="1" required></label>
+      <button class="btn" type="submit">Recupera eventi</button>
+      <label class="field"><span>Scenario RE · solo demo</span><select id="re-demo">
+        <option value="success">Eventi e payload</option>
+        <option value="empty">Nessun evento</option>
+        <option value="error">Errore Data Explorer</option>
+        <option value="limited">Risultato limitato</option>
+      </select></label>
+    </form>
+    <p id="re-window-note" class="small muted"></p>
+    <p class="small muted">Tutte le categorie, primitive, esiti e status. Solo eventi con PA + NAV + paymentToken tutti corrispondenti; quelli privi di una chiave restano esclusi. Massimo 24 ore per ricerca, nessuna scansione automatica dell'intero registro.</p>
+    <section id="re-result" class="re-result" aria-live="polite" aria-label="Risultato ricerca RE"></section>
+    <div id="re-browser" class="re-browser" hidden>
+      <section class="re-list" aria-labelledby="re-list-title">
+        <h3 id="re-list-title">Eventi recuperati</h3>
+        <p class="small muted">Ordinati per inserimento RE. Non è l'ordine della FSM.</p>
+        <div id="re-events" class="scroll"></div>
+        <nav class="re-pagination" aria-label="Pagine eventi RE">
+          <button id="re-prev" class="btn o sm" type="button">Precedenti</button>
+          <span id="re-page" class="small"></span>
+          <button id="re-next" class="btn o sm" type="button">Successivi</button>
+        </nav>
+      </section>
+      <section class="re-inspector" aria-labelledby="re-event-title">
+        <h3 id="re-event-title">Evento selezionato</h3>
+        <h4>Payload decodificato · solo testo</h4>
+        <pre id="re-payload" class="re-payload" tabindex="0" aria-label="Payload decodificato"></pre>
+        <details class="re-raw" open>
+          <summary>Tutti i campi RE · tracciato originale</summary>
+          <p class="small muted">Timestamp sorgente senza offset mantenuti come ricevuti: non sono l'ora del browser. Fuso di dataOraEvento: Europe/Rome; fuso di insertedTimestamp da verificare su ADX.</p>
+          <dl id="re-fields" class="re-fields"></dl>
+        </details>
+      </section>
+    </div>
+  </div>
+</dialog>
+</body>
+</html>

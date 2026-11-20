@@ -1,0 +1,30 @@
+:host {
+  display: block;
+  margin-block: var(--space-3);
+}
+
+section {
+  border-block: solid var(--line);
+  padding-block: var(--space-3);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.comparison {
+  overflow-x: auto;
+}
+
+code {
+  overflow-wrap: anywhere;
+}
+
+caption {
+  text-align: left;
+  color: var(--muted);
+  font-size: var(--font-size-small);
+}

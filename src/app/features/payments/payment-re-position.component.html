@@ -1,0 +1,82 @@
+<section aria-label="Cronologia RE della posizione">
+  <div class="heading">
+    <h3>Cronologia RE della posizione (PA + NAV)</h3>
+    <button
+      class="btn o"
+      type="button"
+      (click)="consult()"
+      [disabled]="!canConsult()"
+      aria-label="Consulta il Registro Eventi per la posizione"
+    >
+      {{ result() ? 'Aggiorna' : 'Consulta RE' }}
+    </button>
+  </div>
+  <p class="sub">
+    Tutti gli eventi RE della posizione, senza filtrare per token: includono le chiamate prive di
+    <span class="mono">paymentToken</span>, come <span class="mono">verifyPaymentNotice</span>, e quelle di tutti
+    i tentativi. Consultazione su richiesta; non modifica la proiezione.
+  </p>
+  @if (!window()) {
+    <p class="note warn">
+      Intervallo non proponibile: nessun tentativo ha un avvio con data-ora valida. Usa “Recupera
+      tentativo da RE” per specificare un intervallo UTC.
+    </p>
+  }
+  @if (check.isLoading()) {
+    <p role="status">Consultazione del Registro Eventi in corso…</p>
+  }
+  @if (error(); as message) {
+    <p class="note err" role="alert">{{ message }}</p>
+  }
+  @if (result(); as chronology) {
+    <div aria-live="polite">
+      @if (chronology.truncated) {
+        <p class="note warn">
+          ⚠ Limite RE raggiunto: la cronologia è incompleta e non ha altre pagine disponibili.
+        </p>
+      }
+      @if (chronology.pageLimited) {
+        <p class="note warn">⚠ Cronologia limitata alle prime pagine.</p>
+      }
+      @if (rows().length === 0) {
+        <p role="status">
+          Nessun evento RE per questo intervallo. Questo non dimostra che il Nodo non abbia ricevuto
+          o inviato chiamate.
+        </p>
+      } @else {
+        <p class="summary">
+          {{ rows().length }} eventi: {{ tokens().size }}
+          {{ tokens().size === 1 ? 'token' : 'token distinti' }} e {{ tokenless().length }} senza
+          token.
+        </p>
+        @if (koRows().length > 0) {
+          <p class="note warn" role="status">
+            <span><strong>⚠ Risposte KO:</strong>{{ ' ' }}
+            @for (row of koRows(); track row.id; let isLast = $last) {
+              <code>{{ row.primitive }}</code>
+              @if (row.koLabel) {
+                ({{ row.koLabel }})
+              }
+              @if (!isLast) {
+                ,
+              }
+            }
+            . L'esito è letto dal payload decodificato: KO se contiene un faultCode, se dichiara outcome KO o se non è una busta SOAP/JSON.</span>
+          </p>
+        }
+        <app-re-chronology-table
+          [rows]="rows()"
+          [showToken]="true"
+          [caption]="
+            'Intervallo [' + chronology.window.from + ', ' + chronology.window.to + ') UTC · da 1 ora prima dell’avvio del primo tentativo, al massimo 24 ore'
+          "
+        />
+        <p class="small muted">
+          Sono inclusi tutti gli eventi con codice fiscale EC e NAV della posizione nell’intervallo,
+          anche di altri tentativi. L’esito OK/KO deriva dal payload della risposta: KO se contiene
+          <code>faultCode</code>, se dichiara <code>outcome</code> KO o se non è una busta SOAP/JSON.
+        </p>
+      }
+    </div>
+  }
+</section>

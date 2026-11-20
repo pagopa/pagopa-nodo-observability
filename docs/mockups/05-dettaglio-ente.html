@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dettaglio ente · Osservabilità pagamenti</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/app.js"></script>
+</head>
+<body data-page="ent">
+<main class="wrap">
+  <a class="crumb" href="04-enti-creditori.html"><i data-i="back"></i>Enti creditori</a>
+
+  <div class="page-head">
+    <div>
+      <h1>Ente creditore</h1>
+      <div class="idline"><div><span>Codice fiscale PA</span><b id="cf">80087670016</b></div></div>
+    </div>
+    <div id="semantics"></div>
+    <label class="field"><span>Intervallo</span><select id="range"><option value="24">Ultime 24 ore</option><option value="14" selected>Ultimi 14 giorni</option><option value="60">Ultimi 60 giorni</option></select></label>
+  </div>
+
+  <div class="kpis kpis-four">
+    <div class="kpi"><div class="l">Tentativi avviati</div><div class="v" id="k-tr">—</div><div class="d">nell'intervallo selezionato</div></div>
+    <div class="kpi"><div class="l">Pagamenti logici</div><div class="v" id="k-pl">—</div><div class="d">in retention (60 giorni)</div></div>
+    <a class="kpi warn" href="02-pagamenti.html?entita=tentativo&ente=80087670016&non_risolti=1"><div class="l">Tentativi non risolti</div><div class="v" id="k-un">93</div><div class="d">PAYMENT_UNKNOWN + PAYMENT_SEND_ERROR</div></a>
+    <div class="kpi"><div class="l">Stazioni attive</div><div class="v" id="k-st">4</div><div class="d">verso cui è stato instradato traffico</div></div>
+  </div>
+
+  <section class="section">
+    <div class="sh"><div><h2>Andamento del traffico</h2><p class="sub">Tentativi avviati per periodo, secondo <span class="mono">attemptStartedAt</span>.</p></div></div>
+    <div class="cols-3-2">
+      <div id="trend"></div>
+      <div>
+        <h3>Pagamenti logici per stato</h3>
+        <div class="rows rows-spaced" id="log-rows"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="sh"><div><h2>Traffico per stazione</h2><p class="sub">Stazioni verso cui sono stati instradati i tentativi di questo ente, con ripartizione per stato dei tentativi.</p></div></div>
+    <div class="scroll"><table class="tbl" id="stz"></table></div>
+    <div class="legend legend-spaced">
+      <span><i class="swatch paying"></i>Fase PSP / in corso</span><span><i class="swatch paid"></i>Fasi PAID / ricevuta (non esito PA)</span><span><i class="swatch warning"></i>Non risolti</span><span><i class="swatch inserted"></i>Annullati / rifiutati</span>
+    </div>
+    <p class="xs muted mt-10">Le categorie visuali non sostituiscono gli stati originali. Da una stazione si apre la lista dei tentativi. I tentativi senza stazione nota sono raggruppati sotto «Non disponibile».</p>
+  </section>
+</main>
+<script>
+const { $, $$, fmtN, icon, badge, spark, stack, stackedBars, hydrateIcons, rnd, fmt } = UI;
+const cf = new URLSearchParams(location.search).get('cf') || '80087670016';
+$('#cf').textContent = cf;
+$('.kpi.warn').href = `02-pagamenti.html?entita=tentativo&ente=${encodeURIComponent(cf)}&non_risolti=1`;
+const LOG = [['INSERTED',3911],['PAYING',1860],['PAID',10320],['NOTICE_STORED',210],['NOTIFIED',287640]];
+// [stazione, tentativi (14gg), [in corso, pagati, non risolti, annullati], sparkline]
+const ST = [
+  ['80087670016_01',212400,[4,86,0.05,9.95],[20,22,26,28,27,30,34]],
+  ['80087670016_02',138200,[5,84,0.09,10.91],[14,15,16,18,17,19,21]],
+  ['80087670016_03',46100,[8,79,0.4,12.6],[5,5,6,7,6,7,8]],
+  ['80087670016_04',12800,[11,70,1.2,17.8],[1,2,2,3,2,3,3]],
+  [null,3380,[41,40,2.1,16.9],[0,0,1,1,1,1,1]]
+];
+const UN = {'80087670016_01':31,'80087670016_02':28,'80087670016_03':19,'80087670016_04':10,'null':5};
+let range = 14;
+function trend(){
+  const r = rnd(cf.length*13+5), n = range===24 ? 24 : range, labels = [], src = [], inf = [], now = Date.now();
+  const unit = range===24 ? 3600e3 : 86400e3;
+  for(let i=n-1;i>=0;i--){
+    const d = new Date(now - i*unit);
+    labels.push(range===24 ? fmt(d.toISOString(),'hm').slice(0,2)+':00' : fmt(d.toISOString(),'dm').slice(0,5));
+    const base = range===24 ? 6000+ 14000*Math.exp(-Math.pow((+fmt(d.toISOString(),'hm').slice(0,2)-13)/4,2)) : 28000 + 9000*Math.sin(i/1.1+1) ;
+    const v = Math.round(base*(0.9+r()*.2)); const x = Math.round(v*(0.03+r()*.02)); src.push(v-x); inf.push(x);
+  }
+  stackedBars($('#trend'),{labels,labelEvery: range===60?6:(n>14?3:2),series:[{name:'Tentativi (da evento)',values:src,fill:'#0073E6'},{name:'Tentativi (avvio stimato)',values:inf,fill:'url(#hatch)'}]});
+}
+function render(){
+  const total = ST.reduce((a,s)=>a+s[1],0), k = range===24?0.07:(range===14?1:3.9);
+  $('#k-un').textContent = fmtN(Object.values(UN).reduce((a,b)=>a+b,0)*k);
+  $('#k-tr').textContent = fmtN(total*k);
+  $('#k-pl').textContent = fmtN(LOG.reduce((a,s)=>a+s[1],0));
+  const mx = ST[0][1];
+  $('#stz').innerHTML = `<thead><tr><th>Stazione</th><th>Tentativi avviati</th><th>Andamento</th><th>Ripartizione per stato</th><th class="num">Non risolti</th><th></th></tr></thead><tbody>` +
+   ST.map(([s,n,p,sp])=>{ const un = Math.round(UN[String(s)]*k); const name = s ? `<span class="mono">${s}</span>` : '<span class="not-available">Non disponibile</span>';
+    return `<tr>
+     <td>${name}</td>
+     <td class="traffic-cell"><div class="traffic-cell-content"><div class="stack traffic-stack"><i class="stack-fill" data-bar-width="${n/mx*100}" data-bar-color="var(--primary)"></i></div><b class="num traffic-value">${fmtN(n*k)}</b></div></td>
+     <td>${spark(sp)}</td>
+     <td class="stack-cell stack-cell-wide">${stack([[p[0],'var(--primary)','Fase PSP / in corso'],[p[1],'var(--ok)','Fasi PAID / ricevuta'],[p[2],'var(--warn-line)','Non risolti'],[p[3],'var(--line-strong)','Annullati / rifiutati']])}</td>
+     <td class="num">${un?`<span class="badge b-warn">${icon('warn')}${fmtN(un)}</span>`:'<span class="muted">0</span>'}</td><td><a href="02-pagamenti.html?entita=tentativo&ente=${encodeURIComponent(cf)}&stazione=${s||'n.d.'}">Tentativi ${icon('chevron')}</a></td></tr>`; }).join('') + '</tbody>';
+  UI.hydrateBars($('#stz'));
+  UI.hydrateStack($('#stz'));
+  hydrateIcons();
+}
+$('#range').addEventListener('change', e => { range = +e.target.value; trend(); render(); });
+document.addEventListener('shellready', () => {
+  $('#semantics').innerHTML = UI.stateGuide();
+  // elenco stati logici
+  const mx = Math.max(...LOG.map(r=>r[1]));
+  $('#log-rows').innerHTML = LOG.map(([s,n])=>`<a class="row" href="02-pagamenti.html?ente=${encodeURIComponent(cf)}&entita=pagamento&stato=${s}"><span class="nm">${badge(s, '', 'logical')}</span><span class="bar"><i data-bar-width="${n/mx*100}"></i></span><span class="ct">${fmtN(n)}</span>${icon('chevron','go')}</a>`).join('');
+  UI.hydrateBars($('#log-rows'));
+  trend(); render(); hydrateIcons();
+});
+document.addEventListener('tzchange', trend);
+</script>
+</body>
+</html>

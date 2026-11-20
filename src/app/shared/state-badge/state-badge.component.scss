@@ -1,0 +1,38 @@
+:host {
+  display: inline-block;
+  max-width: 100%;
+}
+details {
+  color: var(--muted);
+}
+summary {
+  cursor: pointer;
+  border-radius: var(--space-1-5);
+  padding: var(--space-1-5);
+  background: var(--soft);
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-small);
+}
+summary:focus-visible {
+  outline: solid var(--primary);
+}
+code {
+  font-family: var(--mono);
+}
+p {
+  margin: var(--space-1-5) 0;
+  color: var(--text);
+  font-size: var(--font-size-small);
+}
+[data-treatment='info'] summary {
+  color: var(--primary-d);
+  background: var(--primary-bg);
+}
+[data-treatment='ok'] summary {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+[data-treatment='warn'] summary {
+  color: var(--warn);
+  background: var(--warn-bg);
+}

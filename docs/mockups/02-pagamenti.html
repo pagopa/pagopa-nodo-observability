@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pagamenti · Osservabilità pagamenti</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/app.js"></script>
+</head>
+<body data-page="pay">
+<main class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>Pagamenti</h1>
+      <p class="lead">Cerca un pagamento per codice fiscale EC e NAV, oppure apri un tentativo dal suo token.</p>
+    </div>
+  </div>
+
+  <!-- ricerca -->
+  <form id="search" class="toolbar search-form" onsubmit="return go(event)">
+    <div class="field"><span>Cerca per</span>
+      <div class="seg" id="mode">
+        <button type="button" class="on" data-m="panav">EC + NAV</button>
+        <button type="button" data-m="token" id="m-token">Token di pagamento</button>
+      </div>
+    </div>
+    <div id="f-token" class="toolbar nested-toolbar is-hidden">
+      <label class="field"><span>paymentToken</span><input type="text" id="tok" placeholder="Token del tentativo" class="mono token-input" autocomplete="off"></label>
+    </div>
+    <div id="f-panav" class="toolbar nested-toolbar">
+      <label class="field"><span>Codice fiscale EC</span><input type="text" id="cf" placeholder="es. 80087670016" inputmode="numeric" maxlength="11"></label>
+      <label class="field"><span>Numero avviso (nav)</span><input type="text" id="nav" placeholder="es. 302012345678901234" inputmode="numeric" maxlength="18" class="notice-input"></label>
+    </div>
+    <button class="btn" type="submit"><i data-i="search"></i>Cerca</button>
+  </form>
+  <p class="xs muted mode-help" id="mode-help">La ricerca per solo codice fiscale o solo NAV è disponibile come filtro, ma non identifica un pagamento in modo univoco.</p>
+  <div id="token-audit" class="note note-spaced is-hidden"><div>Token in chiaro per tutti, senza IAM in questa fase. Ricerca reale non collegata: nessuna operazione di audit viene eseguita.</div></div>
+
+  <!-- filtri -->
+  <div class="toolbar filter-toolbar" id="filters">
+    <label class="field"><span>Entità</span><select id="f-entita"><option value="pagamento">Pagamento logico</option><option value="tentativo">Tentativo</option></select></label>
+    <label class="field"><span id="state-filter-label">Stato pagamento</span><select id="f-stato"><option value="">Tutti</option></select></label>
+    <label class="field"><span>serviceIdentifier</span><select id="f-service"><option value="">Tutti</option><option>NODO_V2</option><option>NMU</option></select></label>
+    <label class="field"><span>PSP</span><select id="f-psp"><option value="">Tutti</option><option>ABI18164</option><option>ABI03069</option><option>ABI05034</option></select></label>
+    <label class="field"><span>Canale</span><select id="f-canale"><option value="">Tutti</option><option>02654890025_01</option><option>97735020584_05</option></select></label>
+  </div>
+  <div class="chips active-filters" id="active"></div>
+  <p id="search-message" class="small mode-help" role="status"></p>
+  <div id="semantics"></div>
+  <p class="small muted mode-help">Anteprima con dati sintetici. I link aprono scenari di accettazione, non record reali. Le fasi del filtro sono gruppi descrittivi, non una sequenza obbligatoria.</p>
+
+  <!-- risultati -->
+  <div class="results">
+    <div class="scroll"><table class="tbl" id="res"></table></div>
+    <div class="pager">
+      <span id="pg-info">Mostrati 12 risultati · gli aggiornamenti dei record visibili arrivano in tempo reale</span>
+      <div class="btns"><button class="btn o sm" disabled>← Precedente</button><button class="btn o sm" id="next">Successiva →</button></div>
+    </div>
+    <p class="xs muted results-note">Paginazione basata su cursore: non viene eseguito il conteggio totale dei risultati.</p>
+  </div>
+</main>
+
+<script>
+const { $, $$, badge, icon, T, hydrateIcons, hydrateTimes, store, toast } = UI;
+const Q = new URLSearchParams(location.search);
+// [cf, nav, statoLogico, [stati tentativi], anomalia, aggiornato (min fa)]
+const GEN = [
+ ['80087670016','302012345678901234','PAYING',['CANCELLED','PAYMENT_UNKNOWN'],true,0],
+ ['00348170101','301987654321098765','PAID',['CANCELLED','PAID'],false,2],
+ ['01199250158','301500000000004412','PAYING',['PAYMENT_SENT'],false,3],
+ ['80012000826','302200000000118820','NOTIFIED',['NOTICE_SENT'],false,5],
+ ['80087670016','302012345678905512','INSERTED',['CANCELLED'],false,6],
+ ['02438750586','301100000000076301','PAYING',['PAYMENT_ACCEPTED'],false,9],
+ ['00348170101','301987654321177403','PAYING',['PAYING'],false,11],
+ ['01199250158','301500000000009917','NOTIFIED',['CANCELLED','CANCELLED','NOTIFIED'],false,14],
+ ['80012000826','302200000000220031','PAYING',['PAYMENT_RESERVED'],false,17],
+ ['80087670016','302012345678912271','NOTICE_STORED',['NOTIFIED'],false,21],
+ ['02438750586','301100000000081155','INSERTED',['FAILED'],false,26],
+ ['00514490010','300800000000045520','PAID',['PAID'],false,31]
+];
+const UNR = [
+ ['80087670016','302012345678901234','PAYING',['CANCELLED','PAYMENT_UNKNOWN'],true,0],
+ ['01199250158','301500000000007381','PAYING',['PAYMENT_UNKNOWN'],false,1],
+ ['00348170101','301987654321163350','PAYING',['PAYMENT_SEND_ERROR'],false,2],
+ ['02438750586','301100000000079012','PAYING',['PAYMENT_REFUSED','PAYMENT_UNKNOWN'],false,4],
+ ['80012000826','302200000000199804','PAYING',['PAYMENT_UNKNOWN'],false,5],
+ ['00514490010','300800000000043377','PAYING',['PAYMENT_UNKNOWN'],false,8],
+ ['80087670016','302012345678909980','PAYING',['PAYMENT_SEND_ERROR'],false,12]
+];
+const ANO = [
+ ['80087670016','302012345678901234','PAYING',['CANCELLED','PAYMENT_UNKNOWN'],true,0],
+ ['01199250158','301500000000003091','NOTIFIED',['PAID'],true,40],
+ ['00348170101','301987654321120044','INSERTED',['CANCELLED'],true,95],
+ ['80012000826','302200000000144402','PAID',['PAID'],true,180]
+];
+
+const entita = Q.get('entita') === 'tentativo' ? 'tentativo' : 'pagamento';
+const fill = () => {
+  $('#f-entita').value = entita;
+  $('#state-filter-label').textContent = entita === 'tentativo' ? 'Stato tentativo' : 'Stato pagamento';
+  $('#f-stato').innerHTML = '<option value="">Tutti</option>' + UI.stateOptions(entita === 'tentativo' ? 'attempt' : 'logical');
+  $('#f-stato').value = Q.get('stato') || '';
+  $('#f-psp').value = Q.get('psp') || ''; $('#f-canale').value = Q.get('canale') || '';
+};
+function chips(){
+  const c = [];
+  if (Q.get('non_risolti')) c.push(['Casi','non risolti']);
+  if (Q.get('anomalia')) c.push(['Transizioni','con data-ora mancante']);
+  if (Q.get('ente')) c.push(['Ente', Q.get('ente')]);
+  if (Q.get('stazione')) c.push(['Stazione', Q.get('stazione')]);
+  ['stato','psp','canale'].forEach(k=>{ if(Q.get(k)) c.push([k==='stato'?'Stato':k.toUpperCase(),Q.get(k)]); });
+  $('#active').innerHTML = c.length ? c.map(([k,v])=>`<span class="chip"><em>${UI.escape(k)}</em> ${UI.escape(v)} <a class="chip-remove" href="02-pagamenti.html" aria-label="Rimuovi">${icon('x')}</a></span>`).join('') + '<a class="linkbtn" href="02-pagamenti.html">Rimuovi tutti</a>' : '';
+}
+function scenarioFor(position, state, anomaly) {
+  if (position === 'NOTICE_STORED') return 'archived';
+  if (position === 'NOTIFIED') return 'partial';
+  if (state === 'PAYMENT_ACCEPTED') return 'accepted';
+  if (state === 'FAILED') return 'failed';
+  if (position === 'INSERTED') return 'failed';
+  if (position === 'PAID') return 'paid';
+  return anomaly ? 'unresolved' : 'incomplete';
+}
+function rows(){
+  const stato = Q.get('stato') || '';
+  let src = GEN;
+  if (Q.get('non_risolti') || stato==='PAYMENT_UNKNOWN' || stato==='PAYMENT_SEND_ERROR') src = UNR;
+  if (Q.get('anomalia')) src = ANO;
+  let r = src;
+  if (stato && !UI.UNRESOLVED.has(stato)) r = src.filter(x => (entita==='pagamento'? x[2]===stato : x[3].includes(stato)));
+  if (stato && UI.UNRESOLVED.has(stato)) r = src.filter(x => x[3].includes(stato));
+  if (Q.get('ente')) r = r.filter(x => x[0]===Q.get('ente'));
+  const now = Date.now();
+  const attemptsView = entita === 'tentativo';
+  const visible = attemptsView ? r.flatMap(row => row[3]
+    .map((state, index) => ({ row, state, index }))
+    .filter(item => !stato || item.state === stato)
+    .filter(item => !Q.get('non_risolti') || UI.UNRESOLVED.has(item.state))) : r.map(row => ({ row }));
+  $('#res').innerHTML = `<caption class="small muted">Stati correnti per entità; solo record disponibili in retention.</caption><thead><tr><th>Codice fiscale EC</th><th>NAV</th><th>Stato pagamento</th>
+    <th>${attemptsView ? 'Token · Stato tentativo' : 'Tentativi disponibili · stati correnti'}</th><th>Ultimo aggiornamento</th><th>Scenario dimostrativo</th></tr></thead><tbody>` +
+   visible.map(({ row: [cf,nav,st,att,an,min], state, index }) => {
+     const demoCase = scenarioFor(st, state || att.at(-1), an);
+     return `<tr><td class="mono">${cf}</td><td class="mono">${nav}</td><td>${badge(st, '', 'logical')}</td>
+      <td>${attemptsView ? `<code class="tok">SYNTHETIC-${nav.slice(-4)}-${index + 1}</code> ${badge(state)}`
+        : `<div class="chips attempt-chips">${att.map(a=>badge(a)).join('')}<span class="xs muted">${att.length} token in retention</span></div>`}</td>
+      <td class="nowrap">${an?`<span class="badge b-err">${icon('warn')}Anomalia</span> `:''}${T(new Date(now-min*60e3).toISOString(),'time')}</td>
+      <td><a href="03-dettaglio-pagamento.html?case=${demoCase}">Apri esempio ${icon('chevron')}</a></td></tr>`;
+   }).join('') + (visible.length ? '' : '<tr><td colspan="6">Nessun risultato corrisponde ai filtri correnti.</td></tr>') + '</tbody>';
+  $('#pg-info').textContent = `Mostrati ${visible.length} risultati di esempio · aggiornamenti simulati`;
+  hydrateIcons(); hydrateTimes();
+}
+function setupTokenSearch(){
+  const btn = $('#m-token'); btn.disabled = false;
+  btn.textContent = 'Token di pagamento';
+  hydrateIcons();
+}
+function setMode(m){
+  $$('#mode button').forEach(b => b.classList.toggle('on', b.dataset.m===m));
+  $('#f-panav').classList.remove('is-hidden'); /* PA + NAV restano disponibili anche con il token, come filtri aggiuntivi */
+  $('#f-token').classList.toggle('is-hidden', m !== 'token');
+  $('#token-audit').classList.toggle('is-hidden', m !== 'token');
+  $('#mode-help').classList.toggle('is-hidden', m !== 'panav');
+}
+$$('#mode button').forEach(b => b.addEventListener('click', () => { if(!b.disabled) setMode(b.dataset.m); }));
+function go(e) {
+  e.preventDefault();
+  $('#search-message').textContent = 'Ricerca non collegata in questa anteprima. Usa i filtri sui dati sintetici o i link agli scenari di accettazione.';
+  return false;
+}
+$$('#filters select').forEach(s => s.addEventListener('change', () => {
+  const p = new URLSearchParams(Q);
+  p.set('entita', $('#f-entita').value);
+  ['stato','psp','canale'].forEach(k => { const v = $('#f-'+k).value; if (v) p.set(k, v); else p.delete(k); });
+  if (s.id === 'f-entita') p.delete('stato');
+  location.search = p.toString();
+}));
+$('#next').addEventListener('click', () => toast('Pagina successiva caricata tramite cursore.'));
+document.addEventListener('shellready', () => { $('#semantics').innerHTML = UI.stateGuide(); fill(); chips(); rows(); setupTokenSearch(); });
+document.addEventListener('tzchange', rows);
+</script>
+</body>
+</html>

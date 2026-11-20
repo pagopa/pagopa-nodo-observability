@@ -1,0 +1,79 @@
+<div class="page-head">
+  <div>
+    <h1>Enti creditori</h1>
+    <p class="lead">Traffico per ente creditore (<span class="mono">paFiscalCode</span>) nell’intervallo selezionato. Apri un ente per vedere il traffico per stazione.</p>
+  </div>
+</div>
+
+<div class="toolbar">
+  <label class="field"><span>Cerca per codice fiscale</span>
+    <input type="text" inputmode="numeric" maxlength="11" [value]="search()" (change)="update('paFiscalCode', $event)" placeholder="es. 80087670016">
+  </label>
+  <app-time-window [selection]="timeWindow()" />
+  <div class="field"><span>Ordina per</span>
+    <div class="seg">
+      <button type="button" [class.on]="sort() === 'traffic'" (click)="setSort('traffic')">Volume di traffico</button>
+      <button type="button" [class.on]="sort() === 'unresolved'" (click)="setSort('unresolved')">Casi non risolti</button>
+    </div>
+  </div>
+</div>
+
+<div class="note traffic-note">
+  <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+  <div>Il traffico è il numero di <strong>tentativi avviati</strong> nell’intervallo (attribuiti a <span class="mono">attemptStartedAt</span>). I tentativi senza data di avvio concorrono ai conteggi per stato ma non alle serie temporali.</div>
+</div>
+
+<p class="xs muted creditor-status">{{ liveStatus() }}</p>
+@if (loading()) { <p class="muted creditor-status" role="status">Caricamento enti creditori…</p> }
+@if (error(); as message) {
+  <div class="note err creditor-status" role="alert">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <div>{{ message }} <button class="linkbtn" type="button" (click)="retry()">Riprova</button></div>
+  </div>
+}
+@if (resultsChanged()) {
+  <p class="note creditor-status" role="status">I dati degli enti visibili sono cambiati. L’ordinamento non viene modificato automaticamente; ricarica la pagina per aggiornare conteggi e ordine.</p>
+}
+@if (!loading() && !error() && rows().length === 0) { <p class="empty-lock empty-results">Nessun ente corrisponde alla ricerca.</p> }
+
+@if (!loading() && rows().length > 0) {
+  <div class="scroll creditor-table">
+    <table class="tbl">
+      <caption class="sr-only">Enti creditori paginati dal servizio.</caption>
+      <thead><tr><th>Ente (codice fiscale)</th><th>Tentativi avviati</th><th class="num">Pagamenti</th><th>Stati logici in retention</th><th class="num">Tentativi non risolti</th><th></th></tr></thead>
+      <tbody>
+        @for (row of rows(); track row.paFiscalCode) {
+          <tr class="clickable">
+            <td><a class="mono" [routerLink]="['/creditor-entities', row.paFiscalCode]" [queryParams]="route.snapshot.queryParams">{{ row.paFiscalCode }}</a></td>
+            <td>
+              <div class="creditor-traffic">
+                <span class="bar creditor-progress"><svg class="progress-graphic" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect [attr.width]="row.startedAttempts / maxStarted() * 100" height="100"></rect></svg></span>
+                <strong class="tabular-nums">{{ row.startedAttempts | number }}</strong>
+              </div>
+            </td>
+            <td class="num">{{ row.counts.payments | number }}</td>
+            <td class="sub">
+              @for (state of stateCounts('logical', row.logicalStates); track state.presentation.code) {
+                <div><app-state-badge [presentation]="state.presentation" />: {{ state.count }}</div>
+              } @empty { Nessun pagamento }
+            </td>
+            <td class="num">
+              @if (row.unresolved.attempts > 0) { <span class="badge b-warn">⚠ {{ row.unresolved.attempts }}</span> } @else { <span class="muted">0</span> }
+            </td>
+            <td class="go"><a [routerLink]="['/creditor-entities', row.paFiscalCode]" [queryParams]="route.snapshot.queryParams" aria-label="Apri ente">›</a></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+<div class="pager">
+  <span>Elenco paginato: viene letta solo la pagina richiesta, non l’intero elenco degli enti.</span>
+  <div class="btns">
+    <button class="btn o sm" type="button" [disabled]="!hasPrevious() || loading()" (click)="previous()">← Precedente</button>
+    <button class="btn o sm" type="button" [disabled]="!nextCursor() || loading()" (click)="next()">Successiva →</button>
+  </div>
+</div>
+
+<app-maintenance />

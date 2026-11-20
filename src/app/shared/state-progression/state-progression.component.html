@@ -1,0 +1,75 @@
+<h4>Storia osservata</h4>
+<p>Ordine fornito dal servizio, incluse visite ripetute. Le date non riordinano la sequenza.</p>
+<ol aria-label="Storia osservata">
+  @for (visit of progression().visits; track visit.id) {
+    <li [attr.aria-current]="visit.status === 'Corrente' ? 'step' : null">
+      <strong>{{ visit.status }}</strong> · <span>{{ visit.provenance }}</span>
+      <app-state-badge [presentation]="visit.presentation" />
+      <time>{{ visit.time }}</time>
+      <code>{{ visit.trigger }}</code>
+    </li>
+  } @empty {
+    <li>
+      Nessuna transizione osservata disponibile. Stato corrente: {{ progression().current.code }}.
+    </li>
+  }
+</ol>
+<details class="legend">
+  <summary>Significato delle etichette</summary>
+  <h5>Stato della visita</h5>
+  <dl>
+    <dt>Osservato</dt>
+    <dd>Passaggio di stato registrato dal Nodo, già superato: lo stato è poi cambiato.</dd>
+    <dt>Corrente</dt>
+    <dd>Ultima visita della storia, coincidente con lo stato attuale.</dd>
+    <dt>Inferito</dt>
+    <dd>
+      Passaggio non registrato da un evento, ma dedotto dai dati disponibili; la data-ora è una
+      stima.
+    </dd>
+  </dl>
+  <h5>Origine del dato</h5>
+  <dl>
+    <dt>Evento sorgente</dt>
+    <dd>La data-ora proviene dall’evento del Nodo che ha causato la transizione.</dd>
+    <dt>Inferito</dt>
+    <dd>La data-ora è derivata, non letta direttamente da un evento.</dd>
+    <dt>Anomalia</dt>
+    <dd>
+      Il dato è incoerente o incompleto (es. data-ora non disponibile): va verificato, non è un
+      errore della console.
+    </dd>
+  </dl>
+</details>
+<details class="schema">
+  <summary>Schema documentato · Percorsi possibili, non eventi osservati</summary>
+  <p>
+    Le fasi raggruppano gli stati, non definiscono una sequenza obbligatoria. Gli archi sotto
+    riportano le condizioni documentate, non eventi accaduti.
+  </p>
+  <div class="phases">
+    @for (phase of progression().schema.phases; track phase.phase) {
+      <section>
+        <h5>{{ phase.label }}</h5>
+        @for (state of phase.states; track state.code) {
+          <app-state-badge [presentation]="state" />
+        }
+      </section>
+    }
+  </div>
+  <h5>Archi e condizioni (sorgente → destinazione)</h5>
+  <ul>
+    @for (arc of progression().schema.arcs; track $index) {
+      <li>
+        <code>{{ arc.from.code }} → {{ arc.to.code }}</code
+        >: {{ arc.condition }}
+        @if (arc.applicability === 'unconfirmed') {
+          <strong>Applicabilità da confermare</strong>
+        }
+      </li>
+    }
+  </ul>
+  @for (note of progression().schema.notes; track $index) {
+    <p>{{ note }}</p>
+  }
+</details>

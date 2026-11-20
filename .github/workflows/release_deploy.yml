@@ -3,7 +3,7 @@ name: Release And Deploy
 # Controls when the workflow will run
 on:
   pull_request:
-    types: [ closed ]
+    types: [closed]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -48,7 +48,7 @@ jobs:
           echo "❌ PR was closed without a merge"
           exit 1
 
-      # Set Semvar
+      # Set Semver
       - run: echo "SEMVER=patch" >> $GITHUB_ENV
 
       - if: ${{ (github.event.pull_request.merged && contains(github.event.pull_request.labels.*.name, 'breaking-change')) }}
@@ -84,7 +84,7 @@ jobs:
   release:
     name: Create a New Release
     runs-on: ubuntu-latest
-    needs: [ setup ]
+    needs: [setup]
     outputs:
       version: ${{ steps.release.outputs.version }}
     steps:
@@ -97,8 +97,8 @@ jobs:
           skip_ci: false
 
   deploy:
-    runs-on: ubuntu-latest
-    needs: [ setup, release ]
+    runs-on: [self-hosted-job, "${{ needs.setup.outputs.environment }}"]
+    needs: [setup, release]
     name: Deploy ${{ needs.setup.outputs.environment }}
     environment: ${{ needs.setup.outputs.environment }}
     steps:
@@ -109,53 +109,22 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set Node.js 16
-        uses: actions/setup-node@1a4442cacd436585916779262731d5b162bc6ec7 # v3
+      - name: Set Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 16.14.0
+          node-version: 24
 
       - name: Build
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          ENTRA_TENANT_ID: ${{ secrets.ENTRA_TENANT_ID }}
+          ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID }}
+          ENTRA_REDIRECT_URI: ${{ vars.ENTRA_REDIRECT_URI }}
+          ENTRA_SCOPES: ${{ vars.ENTRA_SCOPES }}
         run: |
-          export REACT_APP_ENV='${{ needs.setup.outputs.environment }}'
-
-          export REACT_APP_MOCKERCONFIG_HOST='${{ vars.MOCKER_CONFIG_HOST }}'
-          export REACT_APP_MOCKERCONFIG_BASEPATH='${{ vars.MOCKER_CONFIG_BASEPATH }}'
-          export REACT_APP_MOCKER_HOST='${{ vars.MOCKER_HOST }}'
-          export REACT_APP_MOCKER_BASEPATH='${{ vars.MOCKER_BASEPATH }}'
-
-          export REACT_APP_PUBLIC_URL='/ui'
-          
-          export REACT_APP_AUTH_CLIENT_ID='${{ vars.AUTH_CLIENT_ID }}'
-          export REACT_APP_AUTH_REDIRECT_URI='${{ vars.AUTH_REDIRECT_URI }}'
-          export REACT_APP_AUTH_TENANT='${{ vars.AUTH_TENANT }}'
-          export REACT_APP_AUTH_SCOPES='${{ vars.AUTH_SCOPES }}'
-          export REACT_APP_EBOLLO20_SUBSCRIPTION_KEY='${{ secrets.EBOLLO20_SUBSCRIPTION_KEY }}'
-          export REACT_APP_EBOLLO20_SERVICE='${{ vars.EBOLLO20_SERVICE }}'
-
-          if [ "${{ needs.setup.outputs.environment }}" = "dev" ]; then        
-            export REACT_APP_FEATURE_MOCKER='true'
-            export REACT_APP_FEATURE_MOCKER_ARCHETYPES='false'
-            export REACT_APP_FEATURE_MOCKER_SIMULATOR='false'
-            export REACT_APP_FEATURE_AUTHORIZER='false'
-          fi
-
-          if [ "${{ needs.setup.outputs.environment }}" = "uat" ]; then        
-            export REACT_APP_FEATURE_MOCKER='true'
-            export REACT_APP_FEATURE_MOCKER_ARCHETYPES='false'
-            export REACT_APP_FEATURE_MOCKER_SIMULATOR='false'
-            export REACT_APP_FEATURE_AUTHORIZER='false'
-          fi
-
-          if [ "${{ needs.setup.outputs.environment }}" = "prod" ]; then        
-            export REACT_APP_FEATURE_MOCKER='false'
-            export REACT_APP_FEATURE_MOCKER_ARCHETYPES='false'
-            export REACT_APP_FEATURE_MOCKER_SIMULATOR='false'
-            export REACT_APP_FEATURE_AUTHORIZER='false'
-          fi
-
-          yarn install
-          yarn generate
-          yarn build
+          npm ci
+          node scripts/deployment-environment.mjs
+          npm run build -- --configuration production,deployment --base-href /ui/
 
       - name: Login
         id: login
@@ -163,23 +132,22 @@ jobs:
         uses: azure/login@92a5484dfaf04ca78a94597f4f19fea633851fa2
         with:
           client-id: ${{ secrets.CD_CLIENT_ID }}
-          tenant-id: ${{ secrets.TENANT_ID }}
+          tenant-id: ${{ secrets.ENTRA_TENANT_ID }}
           subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
 
       - name: Deploy ${{ needs.setup.outputs.environment }}
-        uses: azure/CLI@4db43908b9df2e7ac93c8275a8f9a448c59338dd # v1
-        with:
-          azcliversion: latest
-          inlineScript: |
-            az storage blob sync --container '$web' --account-name ${{ vars.STORAGE_ACCOUNT }} -s "./build" --destination 'ui/' --connection-string '${{ secrets.BLOB_CONNECTION_STRING }}'
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_CONNECTION_STRING }}
+          AZURE_STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
+        run: |
+          az storage blob sync --container '$web' -s "./dist/observability/browser" --destination 'ui/'
 
-
-      - name: Purge
-        uses: azure/CLI@4db43908b9df2e7ac93c8275a8f9a448c59338dd # v1
-        with:
-          azcliversion: latest
-          inlineScript: |
-            az afd endpoint purge -g ${{ vars.CDN_RESOURCE_GROUP }} --endpoint-name ${{ vars.CDN_ENDPOINT }} --profile-name ${{ vars.CDN_PROFILE }} --content-paths "/ui" "/ui/*" "/"
+      - name: Deploy static pages ${{ needs.setup.outputs.environment }}
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_CONNECTION_STRING }}
+          AZURE_STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
+        run: |
+          az storage blob sync --container '$web' -s "./static" --delete-destination false
 
 #  notify:
 #    needs: [ setup, release, deploy ]

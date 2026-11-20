@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Enti creditori · Osservabilità pagamenti</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/app.js"></script>
+</head>
+<body data-page="ent">
+<main class="wrap">
+
+  <div class="page-head">
+    <div>
+      <h1>Enti creditori</h1>
+      <p class="lead">Traffico per ente creditore (<span class="mono">paFiscalCode</span>) nell'intervallo selezionato. Apri un ente per vedere il traffico per stazione.</p>
+    </div>
+  </div>
+
+  <div class="toolbar filter-toolbar">
+    <label class="field"><span>Cerca per codice fiscale</span><input type="text" id="q" placeholder="es. 80087670016" inputmode="numeric"></label>
+    <label class="field"><span>Intervallo</span><select id="range"><option value="1">Ultime 24 ore</option><option value="7">Ultimi 7 giorni</option><option value="60">Ultimi 60 giorni</option></select></label>
+    <div class="field"><span>Ordina per</span>
+      <div class="seg" id="sort"><button class="on" data-s="traffic">Volume di traffico</button><button data-s="unres">Casi non risolti</button></div>
+    </div>
+  </div>
+
+  <div class="note note-major"><i data-i="info"></i><div>Il traffico è il numero di <b>tentativi avviati</b> nell'intervallo (attribuiti a <span class="mono">attemptStartedAt</span>). I tentativi senza data di avvio concorrono ai conteggi per stato ma non alle serie temporali.</div></div>
+  <div id="semantics"></div>
+
+  <div class="scroll table-scroll"><table class="tbl" id="tbl"></table></div>
+  <div class="pager">
+    <span>Elenco paginato: viene letta solo la pagina richiesta, non l'intero elenco degli enti.</span>
+    <div class="btns"><button class="btn o sm" disabled>← Precedente</button><button class="btn o sm" id="next">Successiva →</button></div>
+  </div>
+  <div class="legend legend-spaced">
+    <span><i class="swatch inserted"></i>INSERTED</span><span><i class="swatch paying"></i>PAYING</span><span><i class="swatch paid"></i>PAID</span><span><i class="swatch notified"></i>NOTIFIED</span><span><i class="swatch notice-stored"></i>NOTICE_STORED</span>
+  </div>
+</main>
+<script>
+const { $, $$, fmtN, icon, spark, stack, hydrateIcons, toast } = UI;
+// [cf, tentativi avviati (24h), sparkline, non risolti, [INSERTED,PAYING,PAID,NOTIFIED,NOTICE_STORED] per 100]
+const E = [
+ ['80087670016',412880,[38,41,52,60,58,66,71,64],93,[4,2,11,82,1]],
+ ['00348170101',301440,[30,33,35,41,39,44,47,45],41,[5,1,9,84,1]],
+ ['01199250158',255310,[28,26,31,34,36,35,33,38],22,[3,2,12,82,1]],
+ ['80012000826',141920,[12,14,15,15,17,18,16,19],64,[6,4,14,75,1]],
+ ['02438750586',98760,[9,9,10,12,11,12,13,14],7,[3,1,6,89,1]],
+ ['00514490010',77310,[7,8,8,9,10,9,11,10],12,[4,2,8,85,1]],
+ ['01234560157',52480,[5,6,5,7,6,8,7,7],3,[3,1,7,88,1]],
+ ['80015010723',31260,[3,4,3,4,4,5,4,5],18,[7,3,10,79,1]],
+ ['00184910614',20870,[2,2,3,3,2,3,3,4],0,[2,1,5,91,1]]
+];
+const COL = ['#C5CED6','#0073E6','#00A06A','#008758','rgba(23,50,77,.35)'];
+let sort = 'traffic', range = 1;
+function render(){
+  const q = $('#q').value.trim(), k = {1:1,7:6.6,60:41}[range];
+  let r = E.filter(e => e[0].includes(q));
+  r = [...r].sort((a,b) => sort==='traffic' ? b[1]-a[1] : b[3]-a[3]);
+  const mx = Math.max(...E.map(e=>e[1]))*k;
+  $('#tbl').innerHTML = `<thead><tr><th>Ente (codice fiscale)</th><th>Tentativi avviati</th><th>Andamento</th><th>Pagamenti logici per stato</th><th class="num">Tentativi non risolti</th><th></th></tr></thead><tbody>` +
+   (r.length ? r.map(([cf,n,sp,un,st])=>`<tr class="clickable" onclick="location.href='05-dettaglio-ente.html?cf=${cf}'">
+     <td class="mono">${cf}</td>
+     <td class="traffic-cell"><div class="traffic-cell-content"><div class="stack traffic-stack"><i class="stack-fill" data-bar-width="${n*k/mx*100}" data-bar-color="var(--primary)"></i></div><b class="num traffic-value">${fmtN(n*k)}</b></div></td>
+     <td>${spark(sp)}</td>
+     <td class="stack-cell">${stack(st.map((v,i)=>[v,COL[i]]))}</td>
+     <td class="num">${un?`<span class="badge b-warn">${icon('warn')}${fmtN(un*k)}</span>`:'<span class="muted">0</span>'}</td>
+     <td class="go">${icon('chevron')}</td></tr>`).join('') : `<tr><td colspan="6" class="muted table-empty">Nessun ente trovato per «${q}».</td></tr>`) + '</tbody>';
+  UI.hydrateBars($('#tbl'));
+  UI.hydrateStack($('#tbl'));
+  hydrateIcons();
+}
+$('#q').addEventListener('input', render);
+$('#range').addEventListener('change', e => { range = +e.target.value; render(); });
+$$('#sort button').forEach(b => b.addEventListener('click', () => { $$('#sort button').forEach(x=>x.classList.toggle('on',x===b)); sort=b.dataset.s; render(); }));
+$('#next').addEventListener('click', () => toast('Pagina successiva caricata tramite cursore.'));
+document.addEventListener('shellready', () => { $('#semantics').innerHTML = UI.stateGuide(); render(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<a class="crumb" routerLink="/creditor-entities" [queryParams]="route.snapshot.queryParams">
+  <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+  Enti creditori
+</a>
+<div class="page-head">
+  <div>
+    <h1>Ente creditore</h1>
+    <div class="idline"><div><span>Codice fiscale EC</span><b>{{ paFiscalCode() }}</b></div></div>
+  </div>
+  <app-time-window [selection]="timeWindow()" />
+</div>
+
+@if (loading()) { <p class="muted detail-status" role="status">Caricamento dettaglio ente e stazioni…</p> }
+@if (error(); as message) {
+  <div class="note err detail-status" role="alert">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <div>
+      {{ message }}
+      <div class="chips retry-actions">
+        <button class="btn o sm" type="button" (click)="retry()">Riprova</button>
+        @if (snapshot() === null) { <a class="btn o sm" routerLink="/payments" [queryParams]="attemptListParams()">Apri tentativi</a> }
+      </div>
+    </div>
+  </div>
+}
+
+@if (snapshot(); as data) {
+  <!-- KPI -->
+  <div class="kpis">
+    <div class="kpi">
+      <span class="l">Tentativi avviati</span>
+      <div class="v">{{ data.traffic.reduce((sum, row) => sum + row.startedAttempts, 0) | number }}</div>
+      <span class="d">nell’intervallo selezionato</span>
+    </div>
+    <div class="kpi">
+      <span class="l">Pagamenti</span>
+      <div class="v">{{ data.counts.payments | number }}</div>
+      <span class="d">in retention (60 giorni)</span>
+    </div>
+    <div class="kpi warn">
+      <span class="l">Tentativi non risolti</span>
+      <div class="v">{{ data.unresolved.attempts | number }}</div>
+      <span class="d">UNKNOWN + SEND_ERROR</span>
+    </div>
+    <div class="kpi">
+      <span class="l">Stazioni attive</span>
+      <div class="v">{{ stations().length | number }}</div>
+      <span class="d">verso cui è stato instradato traffico</span>
+    </div>
+  </div>
+  <p class="xs muted snapshot-note">Ultimo snapshot {{ format(data.snapshotAt) }} · ritardo ingestione {{ data.freshness.lagSeconds }} secondi · stato ingestione {{ data.freshness.status }}.</p>
+
+  <!-- Andamento + stati logici -->
+  <section class="section">
+    <div class="sh"><div><h2>Andamento del traffico</h2><p class="sub">Tentativi avviati per periodo, secondo <span class="mono">attemptStartedAt</span>.</p></div></div>
+    <div class="cols-3-2">
+      <div>
+        @if (data.traffic.length) {
+          <div class="scroll">
+            <table class="tbl">
+              <thead><tr><th>Periodo</th><th class="num">Tentativi avviati</th><th class="num">Avvii stimati</th></tr></thead>
+              <tbody>
+                @for (bucket of data.traffic; track bucket.bucketStart) {
+                  <tr><td>{{ format(bucket.bucketStart) }}</td><td class="num">{{ bucket.startedAttempts | number }}</td><td class="num">{{ bucket.estimatedStarts | number }}</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else { <p class="empty-lock">Nessun tentativo avviato nell’intervallo. Nessun dato sintetico viene aggiunto.</p> }
+      </div>
+      <div>
+        <h3>Pagamenti per stato</h3>
+        <div class="rows logical-state-rows">
+          @for (row of data.logicalStates; track row.state) {
+            <div class="row">
+              <span class="nm"><app-state-badge [presentation]="presentation('logical', row.state)" /></span>
+              <span class="bar"><svg class="bar-graphic" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect [attr.width]="row.count / maxLogical() * 100" height="100"></rect></svg></span>
+              <a class="ct" routerLink="/payments" [queryParams]="paymentListParams({ logicalState: row.state })" [attr.aria-label]="'Apri pagamenti in stato ' + row.state">{{ row.count | number }}</a>
+              <span class="i go" aria-hidden="true">›</span>
+            </div>
+          }
+        </div>
+      </div>
+      <div>
+        <h3>Destinatari ricevuta per stato</h3>
+        <div class="rows recipient-state-rows">
+          @if (!recipientsAvailable()) { <p class="note err" role="alert">Dati destinatari non disponibili: contratto del servizio assente o non valido.</p> } @else {
+          @for (row of data.recipientStates; track row.state) {
+            <div class="row">
+              <span class="nm"><app-state-badge [presentation]="presentation('recipient', row.state)" /></span>
+              <span class="bar"><svg class="bar-graphic" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect [attr.width]="row.count / maxRecipients() * 100" height="100"></rect></svg></span>
+              <span class="ct">{{ row.count | number }}</span>
+            </div>
+          } @empty {
+            <p class="muted">Nessun record destinatario disponibile per questo ente.</p>
+          }
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Traffico per stazione -->
+  <section class="section">
+    <div class="sh">
+      <div><h2>Traffico per stazione</h2><p class="sub">Stazioni verso cui sono stati instradati i tentativi di questo ente, con ripartizione per stato.</p></div>
+      <button class="btn o sm" type="button" (click)="reloadStations()">Ricarica stazioni</button>
+    </div>
+    @if (stationResultsChanged()) {
+      <p class="note station-notice" role="status">Sono arrivati aggiornamenti aggregati. La pagina delle stazioni non si sposta automaticamente: ricaricala per vedere i risultati aggiornati.</p>
+    }
+    @if (stationError(); as message) {
+      <div class="note err station-notice" role="alert"><div>{{ message }} <button class="linkbtn" type="button" (click)="reloadStations()">Riprova</button></div></div>
+    }
+    @if (!stations().length && !stationError()) { <p class="empty-lock">Nessun dato di stazione disponibile per questo intervallo.</p> }
+    @if (stations().length) {
+      <div class="scroll">
+        <table class="tbl">
+          <caption class="sr-only">Stazioni dell’ente, con bucket non disponibile esplicitamente indicato</caption>
+          <thead><tr><th>Stazione</th><th>Tentativi avviati</th><th class="num">Non risolti</th><th>Ripartizione per stato</th><th>Traffico per periodo</th><th></th></tr></thead>
+          <tbody>
+            @for (station of stations(); track station.stazione ?? 'unknown') {
+              <tr>
+                <td class="mono">{{ station.stazione ?? 'Non disponibile' }}</td>
+                <td>
+                  <div class="station-traffic">
+                    <span class="bar station-progress"><svg class="progress-graphic" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect [attr.width]="station.startedAttempts / maxStation() * 100" height="100"></rect></svg></span>
+                    <strong class="tabular-nums">{{ station.startedAttempts | number }}</strong>
+                  </div>
+                </td>
+                <td class="num">
+                  @if (station.unresolved.attempts > 0) { <span class="badge b-warn">⚠ {{ station.unresolved.attempts }}</span> } @else { <span class="muted">0</span> }
+                </td>
+                <td class="sub">
+                  @for (state of stateCounts('attempt', station.attemptStates); track state.presentation.code) {
+                    <div><app-state-badge [presentation]="state.presentation" />: {{ state.count }}</div>
+                  } @empty { Nessun tentativo }
+                </td>
+                <td class="sub">
+                  @if (station.traffic.length) {
+                    @for (bucket of station.traffic; track bucket.bucketStart) {
+                      <div>{{ format(bucket.bucketStart) }} · {{ bucket.startedAttempts }} avvii ({{ bucket.estimatedStarts }} stimati)</div>
+                    }
+                  } @else { <span class="muted">Nessun avvio nell’intervallo</span> }
+                </td>
+                <td class="go"><a routerLink="/payments" [queryParams]="attemptListParams({ stazione: station.stazione ?? '~unknown' })" aria-label="Apri tentativi">›</a></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <span>Da una stazione si apre la lista paginata dei pagamenti corrispondenti.</span>
+        <div class="btns">
+          <button class="btn o sm" type="button" [disabled]="!hasPrevious()" (click)="stationPage(false)">← Precedente</button>
+          <button class="btn o sm" type="button" [disabled]="!nextCursor()" (click)="stationPage(true)">Successiva →</button>
+        </div>
+      </div>
+    }
+  </section>
+}

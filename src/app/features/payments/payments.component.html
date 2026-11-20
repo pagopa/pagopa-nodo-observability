@@ -1,0 +1,201 @@
+<div class="page-head">
+  <div>
+    <h1>Pagamenti</h1>
+    <p class="lead">Cerca un pagamento per codice fiscale EC e NAV, oppure apri un tentativo dal suo token.</p>
+  </div>
+  <a class="linkbtn" routerLink="/overview">← Torna alla dashboard</a>
+</div>
+
+<!-- ricerca per token -->
+<form class="toolbar token-search" (submit)="$event.preventDefault(); lookupToken()">
+  <label class="field"><span>Ricerca per paymentToken</span>
+    <input type="text" autocomplete="off" class="mono payment-token-input" [ngModel]="tokenInput()" (ngModelChange)="tokenInput.set($event)" name="paymentToken" placeholder="Token del tentativo">
+  </label>
+  <button class="btn" type="submit" [disabled]="!tokenInput()">Cerca tentativo di pagamento</button>
+</form>
+<p class="xs muted token-search-help">Codice fiscale EC e NAV correnti restringono la ricerca per token. Il valore cercato non viene inserito nell’indirizzo.</p>
+@if (tokenMessage(); as message) {
+  <div class="note token-message" role="status">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    <div>{{ message }}</div>
+  </div>
+}
+
+<!-- filtri -->
+<div class="toolbar payment-filters">
+  <app-time-window [selection]="timeWindow()" />
+  <label class="field"><span>Entità</span>
+    <select [value]="view()" (change)="changeViewFromEvent($event)">
+      <option value="payments">Pagamento</option>
+      <option value="attempts">Tentativo di pagamento</option>
+    </select>
+  </label>
+  <label class="field"><span>Codice fiscale EC</span>
+    <input type="text" inputmode="numeric" maxlength="11" [value]="filter().paFiscalCode" (change)="setFilter('paFiscalCode', $event)" placeholder="es. 80087670016">
+  </label>
+  <label class="field"><span>Numero avviso (nav)</span>
+    <input type="text" inputmode="numeric" maxlength="18" class="notice-number-input" [value]="filter().noticeNumber" (change)="setFilter('noticeNumber', $event)" placeholder="es. 302012345678901234">
+  </label>
+  @if (view() === 'payments') {
+    <label class="field"><span>Stato pagamento</span>
+      <select [value]="filter().logicalState" (change)="setFilter('logicalState', $event)">
+        <option value="">Tutti</option>
+        @for (group of logicalGroups; track group.phase) {
+          <optgroup [label]="group.label">
+            @for (state of group.states; track state.code) { <option [value]="state.code">{{ state.code }} · {{ state.label }}</option> }
+          </optgroup>
+        }
+      </select>
+    </label>
+  } @else {
+    <label class="field"><span>Stato tentativo</span>
+      <select [value]="filter().attemptState" (change)="setFilter('attemptState', $event)">
+        <option value="">Tutti</option>
+        @for (group of attemptGroups; track group.phase) {
+          <optgroup [label]="group.label">
+            @for (state of group.states; track state.code) { <option [value]="state.code">{{ state.code }} · {{ state.label }}</option> }
+          </optgroup>
+        }
+      </select>
+    </label>
+  }
+  <label class="field"><span>serviceIdentifier</span>
+    <select aria-label="Identificativo del servizio" [value]="filter().serviceIdentifier" [disabled]="catalogLoading() || catalogError() !== null" (change)="setFilter('serviceIdentifier', $event)">
+      <option value="" [selected]="!filter().serviceIdentifier">Tutti</option>
+      @for (identifier of serviceIdentifierOptions(); track identifier) {
+        <option [value]="identifier" [selected]="filter().serviceIdentifier === identifier">{{ identifier }}{{ catalogLoaded() && !serviceIdentifiers().includes(identifier) ? ' (non presente nell’elenco)' : '' }}</option>
+      }
+    </select>
+  </label>
+  <label class="field"><span>PSP</span>
+    <input type="text" [value]="filter().psp" (change)="setFilter('psp', $event)" placeholder="Tutti">
+  </label>
+  <label class="field"><span>Canale</span>
+    <input type="text" [value]="filter().canale" (change)="setFilter('canale', $event)" placeholder="Tutti">
+  </label>
+  <label class="field"><span>Stazione</span>
+    <input type="text" [value]="filter().stazione" (change)="setFilter('stazione', $event)" placeholder="Tutti">
+  </label>
+  <label class="field"><span>Solo non risolti</span>
+    <select [value]="filter().unresolvedOnly" (change)="setFilter('unresolvedOnly', $event)">
+      <option value="">No</option><option value="true">Sì</option>
+    </select>
+  </label>
+  <label class="field"><span>Solo anomalie</span>
+    <select [value]="filter().anomaliesOnly" (change)="setFilter('anomaliesOnly', $event)">
+      <option value="">No</option><option value="true">Sì</option>
+    </select>
+  </label>
+</div>
+<p class="xs muted window-note">
+  @if (windowActive()) {
+    Sono elencati {{ view() === 'payments' ? 'i pagamenti' : 'i tentativi' }} con attività nell’intervallo selezionato, con lo stato attuale; le entità senza data restano escluse.
+  } @else {
+    Nessun intervallo selezionato: l’elenco copre tutta la retention (60 giorni).
+  }
+</p>
+@if (catalogLoading()) {
+  <p class="muted" role="status">Caricamento elenco degli identificativi di servizio…</p>
+}
+@if (catalogError(); as message) {
+  <div class="note err" role="alert">
+    <div>{{ message }} <button class="linkbtn" type="button" aria-label="Riprova caricamento elenco" [disabled]="catalogLoading()" (click)="retryCatalog()">Riprova</button></div>
+  </div>
+}
+
+<!-- risultati -->
+<div class="section results-section">
+  <div class="sh">
+    <div>
+      <h2>{{ view() === 'payments' ? 'Pagamenti' : 'Tentativi di pagamento' }}</h2>
+      <p class="sub">{{ liveStatus() }}</p>
+    </div>
+    <button class="btn o sm" type="button" (click)="retry()">Ricarica pagina</button>
+  </div>
+
+  @if (resultsChanged()) {
+    <div class="note results-changed" role="status">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>I pagamenti visibili sono cambiati nel servizio. Le righe non vengono riordinate durante la lettura. <button class="linkbtn" type="button" (click)="retry()">Aggiorna risultati</button></div>
+    </div>
+  }
+  @if (loading()) { <p class="muted" role="status">Ricerca in corso…</p> }
+  @if (error(); as message) {
+    <div class="note err" role="alert">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div>{{ message }} <button class="linkbtn" type="button" (click)="retry()">Riprova</button></div>
+    </div>
+  }
+  @if (!loading() && !error() && rows().length === 0) {
+    <p class="empty-lock">Nessun risultato corrisponde ai filtri correnti.</p>
+  }
+
+  @if (!loading() && rows().length > 0 && view() === 'payments') {
+    <div class="scroll">
+      <table class="tbl">
+        <caption class="sr-only">Pagamenti. Lo stato proviene dalla timeline della posizione e non dagli esiti dei tentativi.</caption>
+        <thead><tr><th>Codice fiscale EC</th><th>NAV</th><th>Stato pagamento</th><th class="num">Tentativi</th><th>Avvisi</th><th></th></tr></thead>
+        <tbody>
+          @for (row of rows(); track row.paFiscalCode + '/' + row.noticeNumber) {
+            @if (payment(row); as item) {
+              <tr class="clickable">
+                <td class="mono">{{ item.paFiscalCode }}</td>
+                <td><a class="mono" [routerLink]="['/payments', item.paFiscalCode, item.noticeNumber]" [queryParams]="detailParams()">{{ item.noticeNumber }}</a></td>
+                <td><app-state-badge [presentation]="presentation('logical', item.state)" /></td>
+                <td class="num">{{ item.attemptCount }}</td>
+                <td>
+                  @if (item.warning) { <span class="badge b-warn">⚠ Non risolto</span> }
+                  @if (item.hasAnomaly) { <span class="badge b-err">⚠ Anomalia</span> }
+                  @if (!item.warning && !item.hasAnomaly) { <span class="muted">—</span> }
+                </td>
+                <td class="go"><a [routerLink]="['/payments', item.paFiscalCode, item.noticeNumber]" [queryParams]="detailParams()" aria-label="Apri dettaglio">›</a></td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @if (!loading() && rows().length > 0 && view() === 'attempts') {
+    <div class="scroll">
+      <table class="tbl">
+        <caption class="sr-only">Tentativi distinti; il paymentToken è mostrato in chiaro.</caption>
+        <thead><tr><th>Codice fiscale EC</th><th>NAV</th><th>paymentToken</th><th>Stato tentativo</th><th>PSP · canale · stazione</th><th>Avvisi</th><th></th></tr></thead>
+        <tbody>
+          @for (row of rows(); track attempt(row)?.attemptId ?? '') {
+            @if (attempt(row); as item) {
+              <tr class="clickable">
+                <td class="mono">{{ item.paFiscalCode }}</td>
+                <td><a class="mono" [routerLink]="['/payments', item.paFiscalCode, item.noticeNumber]" [queryParams]="detailParams(item.attemptId)">{{ item.noticeNumber }}</a></td>
+                <td class="mono">
+                  @if (tokenRevealErrors()[item.attemptId]; as error) {
+                    <span role="alert">{{ error }}</span>
+                  } @else {
+                    {{ displayToken(item) }}
+                  }
+                </td>
+                <td><app-state-badge [presentation]="presentation('attempt', item.state)" /></td>
+                <td class="sub">{{ item.psp ?? 'PSP n/d' }} · {{ item.canale ?? 'canale n/d' }} · {{ item.stazione ?? 'stazione n/d' }}</td>
+                <td>
+                  @if (item.warning) { <span class="badge b-warn">⚠ Non risolto</span> }
+                  @if (item.hasAnomaly) { <span class="badge b-err">⚠ Anomalia</span> }
+                  @if (!item.warning && !item.hasAnomaly) { <span class="muted">—</span> }
+                </td>
+                <td class="go"><a [routerLink]="['/payments', item.paFiscalCode, item.noticeNumber]" [queryParams]="detailParams(item.attemptId)" aria-label="Apri dettaglio">›</a></td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="pager">
+    <span>Risultati paginati con cursore server-side; non è richiesto il conteggio totale.</span>
+    <div class="btns">
+      <button class="btn o sm" type="button" [disabled]="!hasPrevious() || loading()" (click)="previous()">← Precedente</button>
+      <button class="btn o sm" type="button" [disabled]="!nextCursor() || loading()" (click)="next()">Successiva →</button>
+    </div>
+  </div>
+</div>

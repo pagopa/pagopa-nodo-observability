@@ -1,0 +1,34 @@
+:host {
+  display: block;
+  margin-block: var(--space-3);
+}
+
+section {
+  border-inline-start: 3px solid var(--primary);
+  padding: var(--space-3);
+  background: var(--soft);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+h4 {
+  margin: 0;
+}
+
+.summary {
+  margin-block: var(--space-2);
+  padding-block-end: var(--space-2);
+  border-block-end: 1px solid var(--line);
+  line-height: 1.6;
+}
+
+.count {
+  margin-inline-start: var(--space-1);
+  font-weight: 600;
+}

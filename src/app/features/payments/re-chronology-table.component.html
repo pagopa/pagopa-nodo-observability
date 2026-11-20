@@ -1,0 +1,98 @@
+<div class="trace-table">
+  <table class="tbl">
+    <caption>
+      {{ caption() }}
+    </caption>
+    <thead>
+      <tr>
+        <th scope="col">Data-ora</th>
+        <th scope="col">Primitiva</th>
+        <th scope="col">Evento</th>
+        <th scope="col">Esito</th>
+        <th scope="col">Stato registrato</th>
+        @if (showToken()) {
+          <th scope="col">Token</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (row of rows(); track row.id) {
+        <tr
+          [class.state-row]="row.kind === 'state-change'"
+          [class.unanswered]="row.unanswered"
+          [class.fault]="row.outcome === 'KO'"
+        >
+          <td>{{ displayTime(row.event) }}</td>
+          <td>
+            <code>{{ row.primitive }}</code>
+          </td>
+          <td>
+            @switch (row.kind) {
+              @case ('request') {
+                Richiesta
+                @if (row.unanswered) {
+                  <span class="flag">⚠ senza risposta</span>
+                }
+              }
+              @case ('response') {
+                Risposta
+              }
+              @case ('state-change') {
+                Cambio stato
+              }
+              @default {
+                {{ row.event.categoriaEvento }} / {{ row.event.sottoTipoEvento }}
+              }
+            }
+          </td>
+          <td>
+            @switch (row.outcome) {
+              @case ('OK') {
+                <span class="outcome">✓ OK</span>
+              }
+              @case ('KO') {
+                <span class="outcome flag">✗ KO</span>
+                @if (row.faultCode) {
+                  <code class="ko-detail">{{ row.faultCode }}</code>
+                } @else if (row.outcomeReason === 'NOT_SOAP') {
+                  <details class="ko-detail">
+                    <summary>{{ row.koLabel }}</summary>
+                    <pre class="body">{{ row.event.payloadDecoded.text?.trim() ? row.event.payloadDecoded.text : '(corpo vuoto)' }}</pre>
+                  </details>
+                } @else {
+                  <span class="ko-detail">{{ row.koLabel }}</span>
+                }
+              }
+              @default {
+                @if (row.kind === 'response') {
+                  <span class="muted" title="Payload non decodificabile: esito non determinabile">n.d.</span>
+                } @else {
+                  <span class="muted">—</span>
+                }
+              }
+            }
+          </td>
+          <td>
+            @if (row.status) {
+              @if (row.stateEntity) {
+                <span class="entity">{{ row.stateEntity }}:</span>
+              }
+              <code>{{ row.status }}</code>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+          @if (showToken()) {
+            <td>
+              @if (row.event.paymentToken) {
+                <code>{{ row.event.paymentToken }}</code>
+              } @else {
+                <span class="muted">senza token</span>
+              }
+            </td>
+          }
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
