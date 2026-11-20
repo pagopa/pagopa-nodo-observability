@@ -51,7 +51,9 @@ describe('App shell', () => {
     expect(content.textContent).toContain('Enti creditori');
     const logoLink = content.querySelector<HTMLAnchorElement>('a.logo');
     const logoImage = logoLink?.querySelector<HTMLImageElement>('img');
-    expect(logoImage?.getAttribute('src')).toBe('/assets/payment-observability-logo.jpeg');
+    expect(
+      new URL(logoImage?.getAttribute('src') ?? '', 'https://example.com/ui/').pathname,
+    ).toBe('/ui/assets/payment-observability-logo.jpeg');
     expect(logoImage?.getAttribute('alt')).toBe('');
     expect(logoLink?.getAttribute('aria-label')).toBe('Osservabilità pagamenti, dashboard');
     expect(logoLink?.textContent?.trim()).toBe('');

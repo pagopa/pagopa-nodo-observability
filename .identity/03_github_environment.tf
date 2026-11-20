@@ -32,7 +32,7 @@ locals {
     "CONTAINER_APP_ENVIRONMENT_RESOURCE_GROUP_NAME" : local.container_app_environment.resource_group,
     "STORAGE_ACCOUNT" : "pagopa${var.env_short}weunodoobsvsa",
 
-    "API_BASE_URL": var.env_short != "p" ? "https://api.${var.env}.platform.pagopa.it/technical-support/ndp/api/v1": "https://api.platform.pagopa.it/technical-support/ndp/api/v1",
+    "API_BASE_URL": var.env_short != "p" ? "https://api.${var.env}.platform.pagopa.it/nodo/observability/v1": "https://api.platform.pagopa.it/nodo/observability/v1",
 
     "ENTRA_CLIENT_ID": var.entra_client_id,
     "ENTRA_REDIRECT_URI": "https://pagopa${var.env_short}weunodoobsvsa.z6.web.core.windows.net/ui/"
