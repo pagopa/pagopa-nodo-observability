@@ -36,12 +36,7 @@ locals {
 
     "ENTRA_CLIENT_ID": var.entra_client_id,
     "ENTRA_REDIRECT_URI": "https://pagopa${var.env_short}weunodoobsvsa.z6.web.core.windows.net/ui/"
-    "ENTRA_SCOPES": "",
-
-    # "CLUSTER_NAME" : local.aks_cluster.name,
-    # "CLUSTER_RESOURCE_GROUP" : local.aks_cluster.resource_group_name,
-    # "NAMESPACE" : local.domain,
-    # "WORKLOAD_IDENTITY_ID": data.azurerm_user_assigned_identity.workload_identity_clientid.client_id
+    # "ENTRA_SCOPES" : "" commented because not used in the code, but can be useful for future use
   }
   repo_secrets = {
   }
@@ -111,4 +106,3 @@ resource "github_issue_label" "ignore_for_release" {
   name       = "ignore-for-release"
   color      = "008000"
 }
-
