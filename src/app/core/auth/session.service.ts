@@ -84,7 +84,7 @@ export class SessionService {
     if (!this.msal) return;
     this.errorMessage.set(null);
     await this.msal.loginRedirect({
-      scopes: [...this.config.scopes],
+      scopes: [],
       prompt: 'select_account',
       redirectUri: this.redirectUri(),
       state: safeCallbackUrl(callbackUrl) ?? '/overview',

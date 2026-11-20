@@ -36,7 +36,7 @@ locals {
 
     "ENTRA_CLIENT_ID": var.entra_client_id,
     "ENTRA_REDIRECT_URI": "https://pagopa${var.env_short}weunodoobsvsa.z6.web.core.windows.net/ui/"
-    "ENTRA_SCOPES": "api://${var.prefix}-${var.env_short}-nodo-observability-ui/user_impersonation",
+    "ENTRA_SCOPES": "",
 
     # "CLUSTER_NAME" : local.aks_cluster.name,
     # "CLUSTER_RESOURCE_GROUP" : local.aks_cluster.resource_group_name,

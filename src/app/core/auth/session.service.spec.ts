@@ -4,7 +4,8 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { InteractionRequiredAuthError } from '@azure/msal-browser';
-import { createMsalInstance, entraRedirectUri, isEntraConfigured } from './msal';
+import type { EntraIdConfig } from '../../../environments/environment.model';
+import { createMsalInstance, ENTRA_CONFIG, entraRedirectUri, isEntraConfigured } from './msal';
 import { loginGuard, sessionGuard } from './session.guard';
 import { SessionService, safeCallbackUrl } from './session.service';
 import {
@@ -21,10 +22,11 @@ class PageStub {}
 @Component({ template: 'login' })
 class LoginStub {}
 
-function setup(fake: FakeMsal | null = new FakeMsal()) {
+function setup(fake: FakeMsal | null = new FakeMsal(), config: EntraIdConfig = TEST_ENTRA_CONFIG) {
   TestBed.configureTestingModule({
     providers: [
       provideFakeMsal(fake),
+      ...(fake ? [{ provide: ENTRA_CONFIG, useValue: config }] : []),
       provideRouter([
         { path: 'login', component: LoginStub, canActivate: [loginGuard] },
         { path: 'overview', component: PageStub, canActivate: [sessionGuard] },
@@ -121,6 +123,16 @@ describe('SessionService', () => {
       prompt: 'select_account',
       redirectUri: 'http://localhost/',
     });
+  });
+
+  it('uses only OIDC scopes for login when custom scopes are configured', async () => {
+    const fake = new FakeMsal();
+    const { session } = setup(fake, { ...TEST_ENTRA_CONFIG, scopes: ['api://nodo/Read'] });
+    await session.initialize();
+
+    await session.login('/payments');
+
+    expect(fake.loginRequests[0].scopes).toEqual([]);
   });
 
   it('acquires the ID token silently and forces a refresh when it is about to expire', async () => {
