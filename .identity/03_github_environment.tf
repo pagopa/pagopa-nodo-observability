@@ -32,15 +32,11 @@ locals {
     "CONTAINER_APP_ENVIRONMENT_RESOURCE_GROUP_NAME" : local.container_app_environment.resource_group,
     "STORAGE_ACCOUNT" : "pagopa${var.env_short}weunodoobsvsa",
 
-    # "CDN_RESOURCE_GROUP" : "pagopa-${var.env_short}-weu-nodo-observability-fe-rg", # pagopa-<ENV>-weu-nodo-observability-fe-rg
-    # "CDN_ENDPOINT" : "pagopa-${var.env_short}-nodo-observability-cdn-endpoint", # pagopa-<ENV>-nodo-observability-cdn-endpoint
-    # "CDN_PROFILE" : "pagopa-${var.env_short}-nodo-observability-cdn-profile", # pagopa-<ENV>-nodo-observability-cdn-profile
-
     "API_BASE_URL": var.env_short != "p" ? "https://api.${var.env}.platform.pagopa.it/technical-support/ndp/api/v1": "https://api.platform.pagopa.it/technical-support/ndp/api/v1",
 
     "ENTRA_CLIENT_ID": var.entra_client_id,
-    "ENTRA_REDIRECT_URI": "https://pagopa${var.env_short}weunodoobsvsa.z6.web.core.windows.net/"
-    "ENTRA_SCOPES": "api://${var.prefix}-${var.env_short}-nodo-observability-ui/user_impersonation",  // TODO set nodo-observability scopes
+    "ENTRA_REDIRECT_URI": "https://pagopa${var.env_short}weunodoobsvsa.z6.web.core.windows.net/ui/"
+    "ENTRA_SCOPES": "api://${var.prefix}-${var.env_short}-nodo-observability-ui/user_impersonation",
 
     # "CLUSTER_NAME" : local.aks_cluster.name,
     # "CLUSTER_RESOURCE_GROUP" : local.aks_cluster.resource_group_name,

@@ -25,7 +25,7 @@ data "azurerm_key_vault_secret" "key_vault_bot_cd_token" {
 
 data "azurerm_user_assigned_identity" "identity_cd" {
   resource_group_name = "${local.product}-identity-rg"
-  name                = "${local.product}-${local.domain}-job-01-github-cd-identity"
+  name                = "${local.product}-${local.domain}-aux-job-01-github-cd-identity"
 }
 
 data "azurerm_key_vault_secret" "key_vault_deploy_slack_webhook_url" {
