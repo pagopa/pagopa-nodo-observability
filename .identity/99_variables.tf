@@ -5,10 +5,9 @@ locals {
   }
   prefix         = "pagopa"
   domain         = "nodo"
+  cluster_domain = "nodo-aux"
   location_short = "weu"
   product        = "${var.prefix}-${var.env_short}"
-
-  app_name = "github-${local.github.org}-${local.github.repository}-${var.prefix}-${local.domain}-${var.env}-aks"
 
   aks_cluster = {
     name                = "${local.product}-${local.location_short}-${var.env}-aks"

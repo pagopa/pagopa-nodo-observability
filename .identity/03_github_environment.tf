@@ -40,7 +40,7 @@ locals {
 
     "CLUSTER_NAME" : local.aks_cluster.name,
     "CLUSTER_RESOURCE_GROUP" : local.aks_cluster.resource_group_name,
-    "NAMESPACE" : local.domain,
+    "NAMESPACE" : local.cluster_domain,
     "WORKLOAD_IDENTITY_ID": data.azurerm_user_assigned_identity.workload_identity_clientid.client_id,
   }
   repo_secrets = {
