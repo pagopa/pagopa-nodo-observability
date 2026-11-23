@@ -95,6 +95,7 @@ jobs:
           semver: ${{ needs.setup.outputs.semver }}
           github_token: ${{ secrets.BOT_TOKEN_GITHUB }}
           skip_ci: false
+          beta: false
 
   deploy:
     runs-on: [self-hosted-job, "${{ needs.setup.outputs.environment }}"]

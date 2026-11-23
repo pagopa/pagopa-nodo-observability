@@ -37,3 +37,8 @@ data "azurerm_key_vault_secret" "key_vault_blob_connection_string" {
   name = "nodo-observability-storage-account-connection-string"
   key_vault_id = data.azurerm_key_vault.domain_key_vault.id
 }
+
+data "azurerm_user_assigned_identity" "workload_identity_clientid" {
+  name                = "nodo-aux-workload-identity"
+  resource_group_name = "pagopa-${var.env_short}-${local.location_short}-${var.env}-aks-rg"
+}

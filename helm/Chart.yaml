@@ -1,0 +1,10 @@
+apiVersion: v2
+name: pagopa-nodo-observability-fe
+description: pagoPA Nodo Observability frontend (Angular SPA served by nginx)
+type: application
+version: "0.1.0"
+appVersion: "0.1.0-8-PAGOPA-3791-poc"
+dependencies:
+  - name: microservice-chart
+    version: 8.9.1
+    repository: "https://pagopa.github.io/aks-microservice-chart-blueprint"
