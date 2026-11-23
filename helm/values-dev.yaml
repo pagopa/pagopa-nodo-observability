@@ -5,7 +5,7 @@ microservice-chart:
   image:
     repository: ghcr.io/pagopa/pagopa-nodo-observability
     # Overridden by release_deploy_aks.yml with the per-environment image tag (<version>-dev).
-    tag: "0.1.0-8-PAGOPA-3791-poc-dev"
+    tag: "0.1.0-8-PAGOPA-3791-poc"
   # nginx (docker/nginx.conf) listens on 8080 and answers on /healthz.
   readinessProbe:
     httpGet:
@@ -89,4 +89,4 @@ microservice-chart:
     create: false
     deployment:
       image:
-        tag: "0.1.0-8-PAGOPA-3791-poc-dev"
+        tag: "0.1.0-8-PAGOPA-3791-poc"

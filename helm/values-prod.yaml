@@ -1,11 +1,11 @@
 # Values still marked <TO_BE_DEFINED_...> must be replaced before deploying:
 # the release_deploy_aks.yml preflight job fails while any of them is left.
 microservice-chart:
-  namespace: "<TO_BE_DEFINED_NAMESPACE>"
+  namespace: "nodo-aux"
   image:
     repository: ghcr.io/pagopa/pagopa-nodo-observability
-    # Overridden by release_deploy_aks.yml with the per-environment image tag (<version>-prod).
-    tag: "0.1.0-8-PAGOPA-3791-poc-prod"
+    # Overridden by release_deploy_aks.yml with the per-environment image tag (<version>-dev).
+    tag: "0.1.0-8-PAGOPA-3791-poc"
   # nginx (docker/nginx.conf) listens on 8080 and answers on /healthz.
   readinessProbe:
     httpGet:
@@ -23,7 +23,7 @@ microservice-chart:
     periodSeconds: 10
   deployment:
     create: true
-    replicas: 2 # same as HPA minReplica
+    replicas: 1 # same as HPA minReplica
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -41,10 +41,13 @@ microservice-chart:
     forceSslRedirect: true
     haproxy:
       create: true
-      host: "<TO_BE_DEFINED_INGRESS_HOST>"
-      # The SPA is built with base href /ui/: no path rewrite.
-      path: /ui
-      rewriteTarget: ""
+      host: "haproxy.nodo-aux.internal.platform.pagopa.it"
+      # The image is built with base href "<path>/" (release_deploy_aks.yml reads this path),
+      # while nginx serves the SPA under /ui/: HAProxy rewrites <path>/<rest> to /ui/<rest>.
+      path: /nodo-observability/ui
+      rewriteTarget: "/ui/\\1"
+      annotations:
+        haproxy.org/check: "true"
   serviceMonitor:
     create: false
   serviceAccount:
@@ -73,8 +76,8 @@ microservice-chart:
       cpu: "200m"
   autoscaling:
     enable: true
-    minReplica: 2
-    maxReplica: 4
+    minReplica: 1
+    maxReplica: 2
     pollingInterval: 10 # seconds
     cooldownPeriod: 50 # seconds
     triggers:
@@ -86,4 +89,4 @@ microservice-chart:
     create: false
     deployment:
       image:
-        tag: "0.1.0-8-PAGOPA-3791-poc-prod"
+        tag: "0.1.0-8-PAGOPA-3791-poc"
