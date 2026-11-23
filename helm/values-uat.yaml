@@ -1,5 +1,3 @@
-# Values still marked <TO_BE_DEFINED_...> must be replaced before deploying:
-# the release_deploy_aks.yml preflight job fails while any of them is left.
 microservice-chart:
   namespace: "nodo-aux"
   image:
