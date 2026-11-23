@@ -93,3 +93,24 @@ test('image base href follows the HAProxy ingress path of the environment', () =
   assert.equal(runStep(script, values('"/ui(/|$)(.*)"')).status, 1);
   assert.match(job('image'), /BASE_HREF=\$\{\{ needs\.preflight\.outputs\.base_href \}\}/);
 });
+
+test('Helm namespace and workload identity match the GitHub environment Terraform', () => {
+  const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+  const identity = read('.identity/00_data.tf');
+  const variables = read('.identity/99_variables.tf');
+  assert.match(read('.identity/03_github_environment.tf'), /"NAMESPACE" : local\.domain/);
+  const domain = variables.match(/^\s*domain\s*=\s*"([^"]+)"/m)?.[1];
+  assert.equal(domain, 'nodo');
+  assert.match(
+    identity,
+    /"workload_identity_clientid" \{\s*name\s*=\s*"nodo-cron-workload-identity"/,
+  );
+  for (const environment of ['dev', 'uat', 'prod']) {
+    const values = read(`helm/values-${environment}.yaml`);
+    assert.match(values, new RegExp(`^  namespace: "${domain}"$`, 'm'));
+    assert.match(values, /^ {4}workloadIdentityEnabled: false$/m);
+  }
+  const deploy = job('deploy_aks');
+  assert.match(deploy, /namespace: \$\{\{ vars\.NAMESPACE \}\}/);
+  assert.match(deploy, /workloadIdentityClientId=\$\{\{ vars\.WORKLOAD_IDENTITY_ID \}\}/);
+});

@@ -51,8 +51,7 @@ microservice-chart:
   serviceAccount:
     create: false
   azure:
-    # The pod does not access Azure resources.
-    workloadIdentityEnabled: false
+    workloadIdentityClientId: <workload-identity-client-id-set-automatically-by-gha>
   securityContext:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true
