@@ -8,10 +8,11 @@ import { Filters, ObservabilityApi, StreamHttpError } from '../../core/api/obser
 import { SessionService } from '../../core/auth/session.service';
 import { applyAggregateRows } from '../../core/realtime/aggregate-rows';
 import { TimezoneService } from '../../core/timezone.service';
-import { ATTEMPT_STATES, AttemptState, formatInstant, isUnresolvedState, Overview, PRIMITIVE_DIRECTIONS, PRIMITIVE_RESPONSE_BUDGET_SECONDS, PrimitiveCount, PrimitiveDirection, RECIPIENT_STATES } from '../../models/domain';
+import { ATTEMPT_STATES, AttemptState, formatInstant, isUnresolvedState, Overview, PRIMITIVE_DIRECTIONS, PRIMITIVE_RESPONSE_BUDGET_SECONDS, PrimitiveCount, PrimitiveDirection, RECIPIENT_STATES, PAYMENT_ATTEMPT_DISTINCTION } from '../../models/domain';
 import { primitiveNature, primitiveNatureTotals, PRIMITIVE_NATURES } from '../../models/primitive-nature';
 import { stateFilterGroups, statePresentation } from '../../models/state-presentation';
 import { PieChartComponent, PieSlice } from '../../shared/pie-chart/pie-chart.component';
+import { InfoTipComponent } from '../../shared/info-tip/info-tip.component';
 import { StateBadgeComponent } from '../../shared/state-badge/state-badge.component';
 import { readTimeWindow, resolveTimeWindow, TimeWindowSelection } from '../../models/time-window';
 import { TimeWindowComponent } from '../../shared/time-window/time-window.component';
@@ -58,7 +59,7 @@ interface AggregateEvent {
 
 @Component({
   selector: 'app-overview',
-  imports: [DecimalPipe, RouterLink, TimeWindowComponent, MatTabNav, MatTabLink, MatTabNavPanel, StateBadgeComponent, PieChartComponent, PrimitiveWarningsComponent, NodeServicesComponent],
+  imports: [DecimalPipe, RouterLink, TimeWindowComponent, MatTabNav, MatTabLink, MatTabNavPanel, StateBadgeComponent, PieChartComponent, PrimitiveWarningsComponent, NodeServicesComponent, InfoTipComponent],
   templateUrl: './overview.component.html',
   styleUrl: './overview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -74,6 +75,7 @@ export class OverviewComponent implements OnInit {
   readonly recipientsAvailable = computed(() => Array.isArray(this.overview()?.recipientStates));
   readonly recipientMatrixAvailable = computed(() => Array.isArray(this.overview()?.matrices?.recipient));
   readonly presentation = statePresentation;
+  readonly distinction = PAYMENT_ATTEMPT_DISTINCTION;
   readonly primitiveBudgetSeconds = PRIMITIVE_RESPONSE_BUDGET_SECONDS;
   readonly primitivesAvailable = computed(() => Array.isArray(this.overview()?.primitives));
   readonly primitiveTotals = computed(() => {

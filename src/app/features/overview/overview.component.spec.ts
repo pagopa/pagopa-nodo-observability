@@ -114,6 +114,18 @@ describe('OverviewComponent attempt state distribution', () => {
     fixture.destroy();
   });
 
+  it('explains the difference between payment and attempt next to their distributions', async () => {
+    const fixture = await createFixture(snapshot(1, 1));
+    const element = fixture.nativeElement as HTMLElement;
+    const tips = [...element.querySelectorAll<HTMLButtonElement>('button[aria-label="Differenza tra pagamento e tentativo"]')];
+    expect(tips.map(tip => tip.closest('.dist-head')?.querySelector('h3')?.textContent?.trim()))
+      .toEqual(['Pagamenti', 'Tentativi']);
+    const description = element.querySelector(`#${tips[0].getAttribute('aria-describedby')}`);
+    expect(description?.getAttribute('role')).toBe('tooltip');
+    expect(description?.textContent).toContain('un pagamento può avere più tentativi');
+    fixture.destroy();
+  });
+
   it('shows one pie chart per entity with the state lists inside a "Mostra dettaglio" accordion', async () => {
     const data = snapshot(1, 1);
     data.logicalStates = [{ state: 'PAID', count: 2 }];

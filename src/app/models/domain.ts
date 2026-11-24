@@ -8,6 +8,13 @@ export const ATTEMPT_STATES = [
   'PAYMENT_UNKNOWN', 'PAYMENT_SEND_ERROR',
 ] as const;
 
+/** Shared explanation of the two entities, used by the info tips next to their labels. */
+export const PAYMENT_ATTEMPT_DISTINCTION = {
+  label: 'Differenza tra pagamento e tentativo',
+  text: 'Il pagamento è la posizione identificata da codice fiscale EC e NAV. Ogni tentativo di pagarla ha un '
+    + 'proprio paymentToken: un pagamento può avere più tentativi, e pagamento e tentativo hanno stati separati.',
+} as const;
+
 export const RECIPIENT_STATES = ['NOTICE_GENERATED', 'NOTICE_SENT', 'NOTICE_PENDING', 'NOTIFIED'] as const;
 
 export type LogicalState = (typeof LOGICAL_STATES)[number];

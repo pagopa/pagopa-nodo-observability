@@ -28,3 +28,9 @@
 .results-changed {
   margin-bottom: 12px;
 }
+
+.title-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}

@@ -380,3 +380,9 @@
 .duration-toggle {
   margin-top: var(--space-3);
 }
+
+.title-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}

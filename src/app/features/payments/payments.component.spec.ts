@@ -630,6 +630,11 @@ describe('PaymentsComponent with the Entra ID session', () => {
     expect(api.payments).toHaveBeenCalledTimes(1);
     expect(fixture.componentInstance.loading()).toBe(false);
     expect(fixture.componentInstance.rows()).toHaveLength(1);
+    const tip = (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('.results-section button[aria-label="Differenza tra pagamento e tentativo"]');
+    expect(tip?.closest('.title-tip')?.querySelector('h2')?.textContent?.trim()).toBe('Pagamenti');
+    expect(document.getElementById(tip?.getAttribute('aria-describedby') ?? '')?.textContent)
+      .toContain('paymentToken');
     fixture.destroy();
   });
 });

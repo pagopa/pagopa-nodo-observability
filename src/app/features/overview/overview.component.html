@@ -130,7 +130,7 @@
     <div class="dist-grid">
       <div class="dist-group">
         <div class="dist-head">
-          <h3>Pagamenti</h3>
+          <div class="title-tip"><h3>Pagamenti</h3><app-info-tip [label]="distinction.label" [text]="distinction.text" /></div>
           <span class="dist-total"><b>{{ logicalTotal() | number }}</b> totali</span>
         </div>
         <p class="sub state-description">Stato della posizione (EC + NAV)</p>
@@ -156,7 +156,7 @@
       </div>
       <div class="dist-group">
         <div class="dist-head">
-          <h3>Tentativi</h3>
+          <div class="title-tip"><h3>Tentativi</h3><app-info-tip [label]="distinction.label" [text]="distinction.text" /></div>
           <span class="dist-total"><b>{{ attemptTotal() | number }}</b> totali</span>
         </div>
         <p class="sub state-description">Stato di ciascun <span class="mono">paymentToken</span> · in ambra i non risolti</p>

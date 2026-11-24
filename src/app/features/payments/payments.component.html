@@ -107,7 +107,10 @@
 <div class="section results-section">
   <div class="sh">
     <div>
-      <h2>{{ view() === 'payments' ? 'Pagamenti' : 'Tentativi di pagamento' }}</h2>
+      <div class="title-tip">
+        <h2>{{ view() === 'payments' ? 'Pagamenti' : 'Tentativi di pagamento' }}</h2>
+        <app-info-tip [label]="distinction.label" [text]="distinction.text" />
+      </div>
       <p class="sub">{{ liveStatus() }}</p>
     </div>
     <button class="btn o sm" type="button" (click)="retry()">Ricarica pagina</button>

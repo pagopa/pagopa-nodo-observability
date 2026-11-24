@@ -5,9 +5,10 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ObservabilityApi, StreamHttpError } from '../../core/api/observability-api.service';
 import { SessionService } from '../../core/auth/session.service';
-import { ATTEMPT_STATES, Attempt, isUnresolvedState, LOGICAL_STATES, Page, PaymentSummary } from '../../models/domain';
+import { ATTEMPT_STATES, Attempt, isUnresolvedState, LOGICAL_STATES, Page, PaymentSummary, PAYMENT_ATTEMPT_DISTINCTION } from '../../models/domain';
 import { stateFilterGroups, statePresentation } from '../../models/state-presentation';
 import { readTimeWindow, resolveTimeWindow, TimeWindowSelection } from '../../models/time-window';
+import { InfoTipComponent } from '../../shared/info-tip/info-tip.component';
 import { StateBadgeComponent } from '../../shared/state-badge/state-badge.component';
 import { TimeWindowComponent } from '../../shared/time-window/time-window.component';
 import { skip, Subscription } from 'rxjs';
@@ -16,7 +17,7 @@ type Row = PaymentSummary | Attempt;
 
 @Component({
   selector: 'app-payments',
-  imports: [FormsModule, RouterLink, StateBadgeComponent, TimeWindowComponent],
+  imports: [FormsModule, RouterLink, StateBadgeComponent, TimeWindowComponent, InfoTipComponent],
   templateUrl: './payments.component.html',
   styleUrl: './payments.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,6 +33,7 @@ export class PaymentsComponent implements OnInit {
   readonly logicalGroups = stateFilterGroups('logical', LOGICAL_STATES);
   readonly attemptGroups = stateFilterGroups('attempt', ATTEMPT_STATES);
   readonly presentation = statePresentation;
+  readonly distinction = PAYMENT_ATTEMPT_DISTINCTION;
   readonly isUnresolved = isUnresolvedState;
   private readonly loadedRows = signal<Row[]>([]);
   private readonly loadedScopeKey = signal('');
