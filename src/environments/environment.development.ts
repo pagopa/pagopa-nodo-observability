@@ -11,8 +11,8 @@ import { Environment } from './environment.model';
  */
 export const environment: Environment = {
   production: false,
-  // apiBaseUrl: 'http://localhost:8080',
-  apiBaseUrl: 'https://api.dev.platform.pagopa.it/nodo/observability/v1',
+  apiBaseUrl: 'http://localhost:8080',
+  // apiBaseUrl: 'https://api.dev.platform.pagopa.it/nodo/observability/v1',
   // Placeholder: impostare tenant e client ID della registrazione SPA (redirect URI http://localhost:4201/).
   entra: {
     tenantId: '7788edaf-0346-4068-9d79-c868aed15b3d',

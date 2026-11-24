@@ -35,7 +35,9 @@ export class SessionService {
   private readonly router = inject(Router);
   private readonly location = inject(Location);
   private readonly document = inject(DOCUMENT);
-  private readonly account = signal<AccountInfo | null>(null);
+  // MSAL returns a new AccountInfo object for every token: compare by content so that a silent renewal
+  // does not look like an identity change to the views (which would reload and request a token again).
+  private readonly account = signal<AccountInfo | null>(null, { equal: sameAccount });
   private readonly errorMessage = signal<string | null>(null);
 
   private msal: IPublicClientApplication | null = null;
@@ -137,6 +139,11 @@ export class SessionService {
   private redirectUri(): string {
     return entraRedirectUri(this.config, this.document.baseURI);
   }
+}
+
+function sameAccount(a: AccountInfo | null, b: AccountInfo | null): boolean {
+  return a === b || (a !== null && b !== null
+    && a.homeAccountId === b.homeAccountId && a.username === b.username && a.name === b.name);
 }
 
 function isExpiring(result: AuthenticationResult): boolean {

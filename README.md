@@ -43,4 +43,4 @@ docker build -t pagopa-nodo-observability-fe \
 docker run --rm -p 8080:8080 pagopa-nodo-observability-fe
 ```
 
-Optional build args: `ENTRA_REDIRECT_URI` (defaults to the app base URL, e.g. `https://<host>/ui/`, to be registered as SPA redirect URI in Entra ID), `ENTRA_SCOPES` and `BASE_HREF` (default `/ui/`: the public path of the SPA when an ingress exposes it under another prefix and rewrites it to `/ui/`; `release_deploy_aks.yml` derives it from `ingress.haproxy.path` in `helm/values-<env>.yaml`). Use `/healthz` for the liveness/readiness probes.
+Optional build args: `ENTRA_REDIRECT_URI` (defaults to the app base URL, e.g. `https://<host>/ui/`, to be registered as SPA redirect URI in Entra ID), `ENTRA_SCOPES` and `BASE_HREF` (default `/ui/`: the public path of the SPA when an ingress exposes it under another prefix and rewrites it to `/ui/`; `release_deploy.yml` derives it from `ingress.haproxy.path` in `helm/values-<env>.yaml`). Use `/healthz` for the liveness/readiness probes.

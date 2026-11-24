@@ -2,9 +2,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter, convertToParamMap, Router } from '@angular/router';
 import { signal } from '@angular/core';
-import { BehaviorSubject, Observable, of, Subject, throwError } from 'rxjs';
+import { BehaviorSubject, from, map, Observable, of, Subject, throwError } from 'rxjs';
 import { ObservabilityApi, StreamHttpError } from '../../core/api/observability-api.service';
 import { SessionService } from '../../core/auth/session.service';
+import { FakeMsal, provideFakeMsal, testAccount } from '../../core/auth/testing/fake-msal';
 import { Attempt, PaymentSummary, Session } from '../../models/domain';
 import { PaymentsComponent } from './payments.component';
 
@@ -588,6 +589,47 @@ describe('PaymentsComponent observation window', () => {
     const { api, fixture } = await create({ window: 'custom', from: 'bad', to: 'worse' });
     expect(api.payments).not.toHaveBeenCalled();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('date e ore valide in UTC');
+    fixture.destroy();
+  });
+});
+
+describe('PaymentsComponent with the Entra ID session', () => {
+  it('loads the page once even though every request renews the ID token', async () => {
+    const fake = new FakeMsal();
+    fake.accounts = [testAccount()];
+    // Like the auth interceptor, each API call first acquires the token silently.
+    const authorized = <T>(value: T): Observable<T> =>
+      from(TestBed.inject(SessionService).acquireToken()).pipe(map(() => value));
+    const api = {
+      catalogWithServiceIdentifiers: vi.fn(() => authorized({ serviceIdentifiers: [] })),
+      payments: vi.fn(() => authorized({ items: [paymentRow(1)], nextCursor: null, snapshotRevision: 1 })),
+      lookupToken: vi.fn(),
+      connect: vi.fn(() => new Subject<MessageEvent<string>>()),
+    };
+    TestBed.configureTestingModule({
+      imports: [PaymentsComponent],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideFakeMsal(fake),
+        { provide: ObservabilityApi, useValue: api },
+        { provide: ActivatedRoute, useValue: {
+          queryParamMap: new BehaviorSubject(convertToParamMap({})), snapshot: { queryParams: {} },
+        } },
+      ],
+    });
+    await TestBed.inject(SessionService).initialize();
+
+    const fixture = TestBed.createComponent(PaymentsComponent);
+    fixture.detectChanges();
+    for (let tick = 0; tick < 10; tick++) {
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
+
+    expect(api.payments).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.loading()).toBe(false);
+    expect(fixture.componentInstance.rows()).toHaveLength(1);
     fixture.destroy();
   });
 });

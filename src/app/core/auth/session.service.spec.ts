@@ -147,6 +147,18 @@ describe('SessionService', () => {
     expect(fake!.silentRequests[0].account).toEqual(testAccount());
   });
 
+  it('keeps the same session when the silent renewal returns the signed-in account again', async () => {
+    const { fake, session } = setup();
+    fake!.accounts = [testAccount()];
+    await session.initialize();
+    const before = session.session();
+    fake!.silentResults = [tokenResult('fresh', 3600, testAccount())];
+
+    await session.acquireToken();
+
+    expect(session.session()).toBe(before);
+  });
+
   it('falls back to the interactive login when silent acquisition requires interaction', async () => {
     const { fake, session } = setup();
     fake!.accounts = [testAccount()];

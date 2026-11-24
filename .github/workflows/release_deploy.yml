@@ -1,10 +1,8 @@
-name: Release And Deploy
+name: Release And Deploy AKS
 
-# Controls when the workflow will run
+# Manual/called only: merged PRs are released by release_deploy.yml, so a pull_request
+# trigger here would bump the version twice.
 on:
-  pull_request:
-    types: [closed]
-
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
     inputs:
@@ -16,15 +14,31 @@ on:
           - dev
           - uat
           - prod
-      version:
+      semver:
         required: false
         type: choice
         description: Select the version
+        default: patch
         options:
-          - ''
-          - skip_or_promote
+          - patch
+          - skip
+          - promote
           - new_release
           - breaking_change
+      beta:
+        required: false
+        type: boolean
+        description: deploy beta version on AKS
+        default: false
+
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      semver:
+        required: true
+        type: string
 
 permissions:
   packages: write
@@ -33,58 +47,84 @@ permissions:
   id-token: write
   actions: read
 
+env:
+  APP_NAME: nodo-observability-fe
+
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   setup:
     name: Setup
     runs-on: ubuntu-latest
     outputs:
-      semver: ${{ steps.get_semver.outputs.semver }}
-      environment: ${{ steps.get_env.outputs.environment }}
+      semver: ${{ steps.semver_setup.outputs.semver }}
+      environment: ${{ steps.semver_setup.outputs.environment }}
     steps:
-      - name: pull request rejected
-        if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged != true
+      - name: Semver setup
+        id: semver_setup
+        uses: pagopa/github-actions-template/nodo5-semver-setup@5225a04f93d77fe257acd37f1f1b55109583bbc4
+        with:
+          semver: ${{ inputs.semver }}
+
+  # Fails before any release/image push when the AKS deploy prerequisites are missing.
+  preflight:
+    needs: [ setup ]
+    name: Check AKS deploy prerequisites
+    runs-on: ubuntu-latest
+    environment: ${{ needs.setup.outputs.environment }}
+    outputs:
+      base_href: ${{ steps.base_href.outputs.base_href }}
+    steps:
+      - name: Checkout
+        # from https://github.com/actions/checkout/commits/main
+        uses: actions/checkout@1f9a0c22da41e6ebfa534300ef656657ea2c6707
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: false
+
+      - name: Check Helm chart and environment variables
+        env:
+          ENVIRONMENT: ${{ needs.setup.outputs.environment }}
+          NAMESPACE: ${{ vars.NAMESPACE }}
+          CLUSTER_NAME: ${{ vars.CLUSTER_NAME }}
+          CLUSTER_RESOURCE_GROUP: ${{ vars.CLUSTER_RESOURCE_GROUP }}
         run: |
-          echo "❌ PR was closed without a merge"
-          exit 1
+          missing=0
+          for file in helm/Chart.yaml "helm/values-${ENVIRONMENT}.yaml"; do
+            if [ ! -f "$file" ]; then
+              echo "::error::Missing ${file}: the AKS Helm chart is not defined for ${ENVIRONMENT}."
+              missing=1
+            fi
+          done
+          if grep -n '<TO_BE_DEFINED_' helm/Chart.yaml "helm/values-${ENVIRONMENT}.yaml" 2>/dev/null; then
+            echo "::error::Unresolved <TO_BE_DEFINED_...> placeholders in the Helm chart for ${ENVIRONMENT}."
+            missing=1
+          fi
+          for name in NAMESPACE CLUSTER_NAME CLUSTER_RESOURCE_GROUP; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing GitHub environment variable ${name} for ${ENVIRONMENT}."
+              missing=1
+            fi
+          done
+          exit "$missing"
 
-      # Set Semver
-      - run: echo "SEMVER=patch" >> $GITHUB_ENV
-
-      - if: ${{ (github.event.pull_request.merged && contains(github.event.pull_request.labels.*.name, 'breaking-change')) }}
-        run: echo "SEMVER=major" >> $GITHUB_ENV
-
-      # force semver if dev, !=main or skip release
-      - if: ${{ inputs.version == 'new_release' }}
-        run: echo "SEMVER=minor" >> $GITHUB_ENV
-
-      - if: ${{ inputs.version == 'breaking_change' }}
-        run: echo "SEMVER=major" >> $GITHUB_ENV
-
-      - if: ${{ github.ref_name != 'main' }}
-        run: echo "SEMVER=buildNumber" >> $GITHUB_ENV
-
-      - if: ${{ inputs.version == 'skip_or_promote' }}
-        run: echo "SEMVER=skip" >> $GITHUB_ENV
-
-      - id: get_semver
-        name: Set Output
-        run: echo "semver=${{env.SEMVER}}" >> $GITHUB_OUTPUT
-
-      # Set Environment
-      - run: echo "ENVIRONMENT=${{ inputs.environment}}" >> $GITHUB_ENV
-
-      - if: ${{ inputs.environment == null || inputs.environment == '' }}
-        run: echo "ENVIRONMENT=dev" >> $GITHUB_ENV
-
-      - id: get_env
-        name: Set Output
-        run: echo "environment=${{env.ENVIRONMENT}}" >> $GITHUB_OUTPUT
+      # The SPA base href must match the HAProxy ingress path (HAProxy rewrites it to /ui/ when it differs).
+      - name: Base href from the HAProxy ingress path
+        id: base_href
+        env:
+          ENVIRONMENT: ${{ needs.setup.outputs.environment }}
+        run: |
+          INGRESS_PATH="$(yq -r '.microservice-chart.ingress.haproxy.path' "helm/values-${ENVIRONMENT}.yaml")"
+          if [[ ! "$INGRESS_PATH" =~ ^/[A-Za-z0-9._/-]*$ ]]; then
+            echo "::error::Invalid microservice-chart.ingress.haproxy.path '${INGRESS_PATH}' in helm/values-${ENVIRONMENT}.yaml."
+            exit 1
+          fi
+          echo "base_href=${INGRESS_PATH%/}/" >> "$GITHUB_OUTPUT"
 
   release:
+    needs: [ setup, preflight ]
     name: Create a New Release
     runs-on: ubuntu-latest
-    needs: [setup]
+    if: ${{ needs.setup.outputs.semver != 'skip' }}
     outputs:
       version: ${{ steps.release.outputs.version }}
     steps:
@@ -94,77 +134,107 @@ jobs:
         with:
           semver: ${{ needs.setup.outputs.semver }}
           github_token: ${{ secrets.BOT_TOKEN_GITHUB }}
+          beta: ${{ inputs.beta || false }}
           skip_ci: false
-          beta: false
 
-  deploy:
-    runs-on: [self-hosted-job, "${{ needs.setup.outputs.environment }}"]
-    needs: [setup, release]
-    name: Deploy ${{ needs.setup.outputs.environment }}
+  # The app configuration (API base URL, Entra ID) is compiled into the bundle at build time,
+  # so the image is built for the target environment (tag <version>-<environment>), also on promote.
+  # ENTRA_REDIRECT_URI is not passed: vars.ENTRA_REDIRECT_URI targets the storage website, while the
+  # empty default resolves to the page base URI (https://<aks-host><haproxy path>/).
+  image:
+    needs: [ setup, preflight, release ]
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.preflight.result == 'success' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
     environment: ${{ needs.setup.outputs.environment }}
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - name: Checkout
-        id: checkout
         # from https://github.com/actions/checkout/commits/main
         uses: actions/checkout@1f9a0c22da41e6ebfa534300ef656657ea2c6707
         with:
+          ref: ${{ github.ref_name }}
           persist-credentials: false
 
-      - name: Set Node.js 24
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - name: Image tag
+        id: version
+        env:
+          RELEASE_VERSION: ${{ needs.release.outputs.version }}
+          ENVIRONMENT: ${{ needs.setup.outputs.environment }}
+        run: |
+          VERSION="${RELEASE_VERSION:-$(jq -r .version package.json)}"
+          echo "tag=${VERSION}-${ENVIRONMENT}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
-          node-version: 24
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build
-        env:
-          API_BASE_URL: ${{ vars.API_BASE_URL }}
-          ENTRA_TENANT_ID: ${{ secrets.ENTRA_TENANT_ID }}
-          ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID }}
-          ENTRA_REDIRECT_URI: ${{ vars.ENTRA_REDIRECT_URI }}
-          ENTRA_SCOPES: ${{ vars.ENTRA_SCOPES }}
-        run: |
-          npm ci
-          node scripts/deployment-environment.mjs
-          npm run build -- --configuration production,deployment --base-href /ui/
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      - name: Login
-        id: login
-        # from https://github.com/Azure/login/commits/master
-        uses: azure/login@92a5484dfaf04ca78a94597f4f19fea633851fa2
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          client-id: ${{ secrets.CD_CLIENT_ID }}
-          tenant-id: ${{ secrets.ENTRA_TENANT_ID }}
-          subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.tag }}
+            type=raw,value=latest-${{ needs.setup.outputs.environment }}
 
-      - name: Deploy ${{ needs.setup.outputs.environment }}
-        env:
-          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_CONNECTION_STRING }}
-          AZURE_STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
-        run: |
-          az storage blob sync --container '$web' -s "./dist/observability/browser" --destination 'ui/'
+      - name: Build and push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            API_BASE_URL=${{ vars.API_BASE_URL }}
+            ENTRA_TENANT_ID=${{ secrets.ENTRA_TENANT_ID }}
+            ENTRA_CLIENT_ID=${{ vars.ENTRA_CLIENT_ID }}
+            ENTRA_SCOPES=${{ vars.ENTRA_SCOPES }}
+            BASE_HREF=${{ needs.preflight.outputs.base_href }}
 
-      - name: Deploy static pages ${{ needs.setup.outputs.environment }}
-        env:
-          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.BLOB_CONNECTION_STRING }}
-          AZURE_STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
-        run: |
-          az storage blob sync --container '$web' -s "./static" --delete-destination false
+  deploy_aks:
+    name: Deploy on AKS ${{ needs.setup.outputs.environment }}
+    needs: [ setup, preflight, release, image ]
+    if: ${{ always() && needs.image.result == 'success' }}
+    runs-on: [ self-hosted-job, "${{ needs.setup.outputs.environment }}" ]
+    environment: ${{ needs.setup.outputs.environment }}
+    steps:
+      - name: Deploy
+        uses: pagopa/github-actions-template/aks-deploy@5e788a4717069100914e66149997ecfd4c48b746
+        with:
+          branch: ${{ github.ref_name }}
+          client_id: ${{ secrets.CD_CLIENT_ID }}
+          subscription_id: ${{ secrets.SUBSCRIPTION_ID }}
+          tenant_id: ${{ secrets.ENTRA_TENANT_ID }}
+          env: ${{ needs.setup.outputs.environment }}
+          namespace: ${{ vars.NAMESPACE }}
+          cluster_name: ${{ vars.CLUSTER_NAME }}
+          resource_group: ${{ vars.CLUSTER_RESOURCE_GROUP }}
+          app_name: ${{ env.APP_NAME }}
+          helm_upgrade_options: "--debug --set microservice-chart.forceRedeploy=true --set microservice-chart.image.tag=${{ needs.image.outputs.tag }} --set microservice-chart.azure.workloadIdentityClientId=${{ vars.WORKLOAD_IDENTITY_ID }}"
 
 #  notify:
-#    needs: [ setup, release, deploy ]
-#    runs-on: ubuntu-latest
 #    name: Notify
+#    needs: [ setup, release, deploy_aks ]
+#    runs-on: ubuntu-latest
 #    if: always()
 #    steps:
 #      - name: Report Status
 #        if: ${{ needs.setup.outputs.environment == 'prod' }}
-#        uses: ravsamhq/notify-slack-action@v2
+#        uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2 # v2
 #        with:
-#          status: ${{ needs.deploy.result }}
+#          status: ${{ needs.deploy_aks.result }}
 #          token: ${{ secrets.GITHUB_TOKEN }}
-#          notification_title: 'New Release on Production ${{ needs.release.outputs.version }} has {status_message}'
+#          notification_title: 'New Release on ${{ needs.setup.outputs.environment }} for ${{ needs.release.outputs.version }} has {status_message}'
 #          message_format: '{emoji} <{run_url}|{workflow}> {status_message} in <{repo_url}|{repo}>'
 #          footer: 'Linked to <{workflow_url}| workflow file>'
 #          icon_success: ':white_check_mark:'
 #        env:
-#          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+#          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_DEPLOY }}

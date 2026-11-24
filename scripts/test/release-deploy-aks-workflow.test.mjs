@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const read = (name) => readFileSync(new URL(`../../.github/workflows/${name}`, import.meta.url), 'utf8');
-const aks = read('release_deploy_aks.yml');
+const aks = read('release_deploy.yml');
 const storage = read('release_deploy.yml');
 const job = (name) => aks.match(new RegExp(`^  ${name}:\\n([\\s\\S]*?)(?=^  [a-z_]+:|^#|(?![\\s\\S]))`, 'm'))?.[1];
 const triggers = (workflow) => workflow.match(/^on:\n([\s\S]*?)(?=^\S)/m)?.[1] ?? '';

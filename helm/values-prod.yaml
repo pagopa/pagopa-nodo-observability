@@ -2,7 +2,7 @@ microservice-chart:
   namespace: "nodo-aux"
   image:
     repository: ghcr.io/pagopa/pagopa-nodo-observability
-    # Overridden by release_deploy_aks.yml with the per-environment image tag (<version>-dev).
+    # Overridden by release_deploy.yml with the per-environment image tag (<version>-dev).
     tag: "0.1.1-PAGOPA-3791-poc"
   # nginx (docker/nginx.conf) listens on 8080 and answers on /healthz.
   readinessProbe:
@@ -40,7 +40,7 @@ microservice-chart:
     haproxy:
       create: true
       host: "haproxy.nodo-aux.internal.platform.pagopa.it"
-      # The image is built with base href "<path>/" (release_deploy_aks.yml reads this path),
+      # The image is built with base href "<path>/" (release_deploy.yml reads this path),
       # while nginx serves the SPA under /ui/: HAProxy rewrites <path>/<rest> to /ui/<rest>.
       path: /nodo-observability/ui
       rewriteTarget: "/ui/\\1"
