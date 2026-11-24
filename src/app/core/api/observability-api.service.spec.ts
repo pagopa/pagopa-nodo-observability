@@ -38,7 +38,8 @@ describe('ObservabilityApi catalog', () => {
     const response = { checkedAt: '2026-11-04T13:10:36.723Z', nodes: [{
       node: 'NDP001', target: 'NDP001DEV', outcome: 'OK', dbStatus: 'UP', cacheId: '2575664583527662',
       version: '3.40.4', environment: 'ND', serviceIdentifier: 'NDP001DEV',
-    }] };
+    }], cache: { outcome: 'OK', cacheId: '2575664583527662', version: 'GZIP_JSON-0.10.2',
+      timestamp: '2026-11-24T09:53:25.633178+01:00[Europe/Rome]', environment: 'dev', serviceIdentifier: 'CACHE' } };
     const result = firstValueFrom(TestBed.inject(ObservabilityApi).nodeServices());
     const request = expectPath('/api/nodo-monitoring/cache/version');
     expect(request.request.method).toBe('GET');

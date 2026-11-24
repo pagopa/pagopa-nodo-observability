@@ -223,6 +223,24 @@
         }
       }
     },
+    "/api/nodo-monitoring/cache/version": {
+      "get": {
+        "tags": ["system"],
+        "operationId": "getCacheVersions",
+        "summary": "Versione, cache e stato DB delle istanze del Nodo e cache di configurazione Api Config",
+        "description": "Non accetta query string (400).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CacheVersions" } } }
+          },
+          "400": { "$ref": "#/components/responses/E400" },
+          "401": { "$ref": "#/components/responses/E401" },
+          "403": { "$ref": "#/components/responses/E403" },
+          "500": { "$ref": "#/components/responses/E500" }
+        }
+      }
+    },
     "/api/payments": {
       "get": {
         "tags": ["payments"],
@@ -4456,6 +4474,57 @@
           }
         },
         "required": ["code", "message", "fallback"]
+      },
+      "CacheVersionOutcome": {
+        "type": "string",
+        "enum": ["OK", "UNCONFIGURED", "UNAVAILABLE"],
+        "description": "UNCONFIGURED: chiave di sottoscrizione assente; UNAVAILABLE: chiamata fallita o scaduta."
+      },
+      "CacheVersionNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node", "target", "outcome", "dbStatus", "cacheId", "version", "environment", "serviceIdentifier"],
+        "properties": {
+          "node": { "type": "string", "enum": ["NDP001", "NDP004"] },
+          "target": { "type": "string", "description": "X-Ndp-Target inviato al monitoraggio del Nodo." },
+          "outcome": { "$ref": "#/components/schemas/CacheVersionOutcome" },
+          "dbStatus": { "type": ["string", "null"] },
+          "cacheId": { "type": ["string", "null"] },
+          "version": { "type": ["string", "null"] },
+          "environment": { "type": ["string", "null"] },
+          "serviceIdentifier": { "type": ["string", "null"] }
+        }
+      },
+      "ApiConfigCacheVersion": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Cache di Api Config: fonte di verità della configurazione caricata dalle istanze del Nodo.",
+        "required": ["outcome", "cacheId", "version", "timestamp", "environment", "serviceIdentifier"],
+        "properties": {
+          "outcome": { "$ref": "#/components/schemas/CacheVersionOutcome" },
+          "cacheId": { "type": ["string", "null"], "description": "X-CACHE-ID restituito da apiconfig-cache." },
+          "version": { "type": ["string", "null"], "description": "X-CACHE-VERSION restituito da apiconfig-cache." },
+          "timestamp": {
+            "type": ["string", "null"],
+            "description": "X-CACHE-TIMESTAMP restituito da apiconfig-cache (ZonedDateTime, es. 2026-11-24T09:53:25.633178+01:00[Europe/Rome])."
+          },
+          "environment": { "type": "string" },
+          "serviceIdentifier": { "const": "CACHE" }
+        }
+      },
+      "CacheVersions": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["checkedAt", "nodes", "cache"],
+        "properties": {
+          "checkedAt": { "type": "string", "format": "date-time" },
+          "nodes": {
+            "type": "array",
+            "description": "Una voce per nodo, NDP001 per primo; un nodo in errore non nasconde gli altri.",
+            "items": { "$ref": "#/components/schemas/CacheVersionNode" }
+          },
+          "cache": { "$ref": "#/components/schemas/ApiConfigCacheVersion" }
+        }
       },
       "Maintenances": {
         "type": "object", "additionalProperties": false,

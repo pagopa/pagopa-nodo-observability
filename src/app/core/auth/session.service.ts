@@ -110,7 +110,7 @@ export class SessionService {
       if (result.account) this.setAccount(result.account);
       return result.idToken;
     } catch (error) {
-      if (isInteractionRequired(error)) {
+      if (requiresInteractiveLogin(error)) {
         void this.login(this.router.url).catch(() => this.handleUnauthorized());
       }
       throw error;
@@ -145,9 +145,15 @@ function isExpiring(result: AuthenticationResult): boolean {
   return typeof exp === 'number' && exp * 1000 - Date.now() < EXPIRY_MARGIN_MS;
 }
 
-/** Name check instead of `instanceof` so the MSAL runtime stays out of the initial bundle. */
-function isInteractionRequired(error: unknown): boolean {
-  return error instanceof Error && error.name === 'InteractionRequiredAuthError';
+/**
+ * Silent renewal cannot recover: Entra ID asks for interaction, or the hidden iframe never answered
+ * (e.g. Entra ID showed an error page in it). Name checks instead of `instanceof` keep the MSAL
+ * runtime out of the initial bundle.
+ */
+function requiresInteractiveLogin(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (error.name === 'InteractionRequiredAuthError') return true;
+  return error.name === 'BrowserAuthError' && 'errorCode' in error && error.errorCode === 'timed_out';
 }
 
 function describe(error: unknown): string {

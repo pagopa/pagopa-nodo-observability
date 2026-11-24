@@ -55,6 +55,15 @@ test('service identifiers are sorted, unique strings from visible attempts', T, 
   }
 }));
 
+test('the cache version check reports the Nodo instances and the configuration cache', T, () => withServer({}, async h => {
+  const response = await h.get('/api/nodo-monitoring/cache/version');
+  assert.equal(response.status, 200);
+  assert.deepEqual(Object.keys(response.json.cache).sort(),
+    ['cacheId', 'environment', 'outcome', 'serviceIdentifier', 'timestamp', 'version']);
+  assert.equal(response.json.cache.serviceIdentifier, 'CACHE');
+  assert.ok(response.json.nodes.every(node => node.cacheId === response.json.cache.cacheId));
+}));
+
 test('attempt timelines expose the primitive that caused each transition', T, () => withServer({}, async h => {
   const payment = (await h.get(`/api/payments/${PA1}/${notice(1)}`)).json;
   assert.deepEqual(

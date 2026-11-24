@@ -3,9 +3,10 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { InteractionRequiredAuthError } from '@azure/msal-browser';
+import { BrowserAuthError, InteractionRequiredAuthError } from '@azure/msal-browser';
 import type { EntraIdConfig } from '../../../environments/environment.model';
 import { createMsalInstance, ENTRA_CONFIG, entraRedirectUri, isEntraConfigured } from './msal';
+import { isSilentAuthCallback } from './redirect-bridge';
 import { loginGuard, sessionGuard } from './session.guard';
 import { SessionService, safeCallbackUrl } from './session.service';
 import {
@@ -156,6 +157,26 @@ describe('SessionService', () => {
     expect(fake!.loginRequests).toHaveLength(1);
   });
 
+  it('falls back to the interactive login when the silent iframe renewal times out', async () => {
+    const { fake, session } = setup();
+    fake!.accounts = [testAccount()];
+    await session.initialize();
+    fake!.silentResults = [new BrowserAuthError('timed_out', 'test-correlation', 'redirect_bridge_timeout')];
+
+    await expect(session.acquireToken()).rejects.toBeInstanceOf(BrowserAuthError);
+    expect(fake!.loginRequests).toHaveLength(1);
+  });
+
+  it('does not start the interactive login for other silent failures', async () => {
+    const { fake, session } = setup();
+    fake!.accounts = [testAccount()];
+    await session.initialize();
+    fake!.silentResults = [new BrowserAuthError('no_network_connectivity', 'test-correlation')];
+
+    await expect(session.acquireToken()).rejects.toBeInstanceOf(BrowserAuthError);
+    expect(fake!.loginRequests).toHaveLength(0);
+  });
+
   it('refuses tokens without a session or configuration', async () => {
     await expect(setup().session.acquireToken()).rejects.toThrow();
     TestBed.resetTestingModule();
@@ -214,5 +235,24 @@ describe('session guards', () => {
     expect(TestBed.inject(Router).url).toBe('/payments');
     await harness.navigateByUrl('/login?callbackUrl=%2Foverview');
     expect(TestBed.inject(Router).url).toBe('/overview');
+  });
+});
+
+describe('isSilentAuthCallback', () => {
+  const frame = (hash: string, inIframe = true) => {
+    const win = { location: { hash } } as unknown as Window;
+    Object.assign(win, { parent: inIframe ? ({} as Window) : win });
+    return win;
+  };
+
+  it('recognises the MSAL response loaded in the hidden renewal iframe', () => {
+    expect(isSilentAuthCallback(frame('#code=c&state=s'))).toBe(true);
+    expect(isSilentAuthCallback(frame('#error=login_required&state=s'))).toBe(true);
+  });
+
+  it('lets the application start in the top window or without an auth response', () => {
+    expect(isSilentAuthCallback(frame('#code=c&state=s', false))).toBe(false);
+    expect(isSilentAuthCallback(frame(''))).toBe(false);
+    expect(isSilentAuthCallback(frame('#section'))).toBe(false);
   });
 });

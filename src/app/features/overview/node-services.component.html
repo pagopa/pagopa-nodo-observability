@@ -2,7 +2,7 @@
   <div class="sh">
     <div>
       <h2 id="node-services-title">Istanze del Nodo</h2>
-      <p class="sub">Versione, cache e stato del database di ciascuna istanza.</p>
+      <p class="sub">Versione, cache e stato del database di ciascuna istanza, confrontati con la cache di configurazione.</p>
     </div>
     <div class="actions">
       @if (check(); as data) {
@@ -26,44 +26,114 @@
   @if (loading() && !check()) {
     <p role="status">Caricamento delle istanze del Nodo…</p>
   } @else if (check(); as data) {
-    @if (data.nodes.length === 0) {
-      <p class="muted">Nessuna istanza del Nodo restituita dal controllo.</p>
-    } @else {
-      <ul class="services">
-        @for (service of data.nodes; track service.serviceIdentifier) {
-          <li class="service">
-            <h3 class="mono">{{ service.serviceIdentifier }}</h3>
-            <dl>
-              <div>
-                <dt>Stato DB</dt>
-                <dd>
-                  @if (service.dbStatus === null) {
-                    <span class="badge b-mute">Non disponibile</span>
-                  } @else if (dbUp(service.dbStatus)) {
+    <ul class="services" aria-label="Cache di configurazione e istanze del Nodo">
+      <li class="service config-cache" aria-labelledby="config-cache-title">
+        <h3 id="config-cache-title">Cache di configurazione</h3>
+        @if (data.cache; as cache) {
+          @if (!outcomeOk(cache.outcome)) {
+            <p class="note warn" role="status">
+              <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
+              {{ cache.outcome === 'UNCONFIGURED' ? 'Verifica della cache di configurazione non configurata.' : 'Cache di configurazione non raggiungibile.' }}
+            </p>
+          }
+          <dl>
+            <div>
+              <dt>Esito</dt>
+              <dd>
+                @if (outcomeOk(cache.outcome)) {
+                  <span class="badge b-ok">
+                    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                    {{ cache.outcome }}
+                  </span>
+                } @else {
+                  <span class="badge b-warn">
+                    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/><circle cx="12" cy="12" r="10"/></svg>
+                    {{ cache.outcome || 'Non disponibile' }}
+                  </span>
+                }
+              </dd>
+            </div>
+            <div>
+              <dt>Cache ID</dt>
+              <dd [class.mono]="cache.cacheId !== null" [class.not-available]="cache.cacheId === null">{{ cache.cacheId ?? 'Non disponibile' }}</dd>
+            </div>
+            <div>
+              <dt>Versione</dt>
+              <dd [class.mono]="cache.version !== null" [class.not-available]="cache.version === null">{{ cache.version ?? 'Non disponibile' }}</dd>
+            </div>
+            <div>
+              <dt>Aggiornata il</dt>
+              <dd [class.not-available]="cache.timestamp === null">{{ cache.timestamp === null ? 'Non disponibile' : formatCacheTimestamp(cache.timestamp) }}</dd>
+            </div>
+            <div>
+              <dt>Ambiente</dt>
+              <dd [class.not-available]="cache.environment === null">{{ cache.environment ?? 'Non disponibile' }}</dd>
+            </div>
+          </dl>
+        } @else {
+          <p class="muted">Informazioni sulla cache di configurazione non disponibili.</p>
+        }
+      </li>
+      @for (service of data.nodes; track service.serviceIdentifier) {
+        <li class="service">
+          <h3 class="mono">{{ service.serviceIdentifier }}</h3>
+          <dl>
+            <div>
+              <dt>Stato DB</dt>
+              <dd>
+                @if (service.dbStatus === null) {
+                  <span class="badge b-mute">Non disponibile</span>
+                } @else if (dbUp(service.dbStatus)) {
+                  <span class="badge b-ok">
+                    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                    {{ service.dbStatus }}
+                  </span>
+                } @else {
+                  <span class="badge b-err">
+                    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/><circle cx="12" cy="12" r="10"/></svg>
+                    {{ service.dbStatus }}
+                  </span>
+                }
+              </dd>
+            </div>
+            <div>
+              <dt>Cache ID</dt>
+              <dd [class.mono]="service.cacheId !== null" [class.not-available]="service.cacheId === null">{{ service.cacheId ?? 'Non disponibile' }}</dd>
+            </div>
+            @switch (aligned(service, data.cache)) {
+              @case (true) {
+                <div>
+                  <dt>Configurazione</dt>
+                  <dd>
                     <span class="badge b-ok">
                       <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-                      {{ service.dbStatus }}
+                      Allineata alla cache
                     </span>
-                  } @else {
-                    <span class="badge b-err">
-                      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/><circle cx="12" cy="12" r="10"/></svg>
-                      {{ service.dbStatus }}
+                  </dd>
+                </div>
+              }
+              @case (false) {
+                <div>
+                  <dt>Configurazione</dt>
+                  <dd>
+                    <span class="badge b-warn">
+                      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
+                      Non allineata alla cache
                     </span>
-                  }
-                </dd>
-              </div>
-              <div>
-                <dt>Cache ID</dt>
-                <dd [class.mono]="service.cacheId !== null" [class.not-available]="service.cacheId === null">{{ service.cacheId ?? 'Non disponibile' }}</dd>
-              </div>
-              <div>
-                <dt>Versione</dt>
-                <dd [class.mono]="service.version !== null" [class.not-available]="service.version === null">{{ service.version ?? 'Non disponibile' }}</dd>
-              </div>
-            </dl>
-          </li>
-        }
-      </ul>
+                  </dd>
+                </div>
+              }
+            }
+            <div>
+              <dt>Versione</dt>
+              <dd [class.mono]="service.version !== null" [class.not-available]="service.version === null">{{ service.version ?? 'Non disponibile' }}</dd>
+            </div>
+          </dl>
+        </li>
+      }
+    </ul>
+    @if (data.nodes.length === 0) {
+      <p class="muted">Nessuna istanza del Nodo restituita dal controllo.</p>
     }
   }
 </section>

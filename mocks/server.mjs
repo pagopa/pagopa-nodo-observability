@@ -521,7 +521,8 @@ export function createMockServer({ now = Date.now, heartbeatMs = 15_000, replayL
             version: '3.40.4', environment: 'ND', serviceIdentifier: 'NDP001DEV' },
           { node: 'NDP004', target: 'NDP004IT', outcome: 'OK', dbStatus: 'UP', cacheId: '2575664583527662',
             version: '3.42.2-snapshot', environment: 'SIT', serviceIdentifier: 'NDP004IT' },
-        ] });
+        ], cache: { outcome: 'OK', cacheId: '2575664583527662', version: 'GZIP_JSON-0.10.2',
+          timestamp: '2026-11-24T09:53:25.633178+01:00[Europe/Rome]', environment: 'dev', serviceIdentifier: 'CACHE' } });
       }
       if (req.method === 'GET' && path === '/api/apiconfig/maintenances') {
         requireValue(!url.search);

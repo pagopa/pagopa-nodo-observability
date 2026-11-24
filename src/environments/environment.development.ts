@@ -17,7 +17,7 @@ export const environment: Environment = {
   entra: {
     tenantId: '7788edaf-0346-4068-9d79-c868aed15b3d',
     clientId: '37cf8cca-a086-4828-a115-26367dd4c00f',
-    redirectUri: 'http://localhost:4201',
+    redirectUri: 'http://localhost:4201/',
     // Only the ID token (aud = client ID) is used: no custom API scope is needed.
     scopes: [],
   },

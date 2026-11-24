@@ -3,10 +3,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ObservabilityApi } from '../../core/api/observability-api.service';
 import { TimezoneService } from '../../core/timezone.service';
 import { formatInstant } from '../../models/domain';
-import { isDbUp, NodeServicesCheck } from '../../models/node-service';
+import { cacheAlignment, cacheTimestampInstant, isDbUp, isOutcomeOk, NodeServicesCheck } from '../../models/node-service';
 
 /**
- * Nodo microservices with their version, cache id and database status, read when the overview opens
+ * Nodo microservices with their version, cache id and database status, plus the Api Config cache that is
+ * the source of truth of the configuration, read when the overview opens
  * and again on demand. A failed sync keeps the last successful check on screen.
  */
 @Component({
@@ -24,7 +25,14 @@ export class NodeServicesComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly dbUp = isDbUp;
+  readonly outcomeOk = isOutcomeOk;
+  readonly aligned = cacheAlignment;
   readonly format = (value: string): string => formatInstant(value, this.timezone.zone());
+  /** Cache timestamp in the selected zone, or its raw value when it cannot be parsed. */
+  readonly formatCacheTimestamp = (value: string): string => {
+    const instant = cacheTimestampInstant(value);
+    return instant ? this.format(instant) : value;
+  };
 
   ngOnInit(): void {
     this.load();

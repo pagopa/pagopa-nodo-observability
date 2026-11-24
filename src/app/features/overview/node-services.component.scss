@@ -97,3 +97,15 @@
     font-style: italic;
   }
 }
+
+.config-cache {
+  border-inline-start: var(--space-1) solid var(--primary);
+
+  h3 {
+    font-family: inherit;
+  }
+
+  .note {
+    margin-bottom: var(--space-2);
+  }
+}
