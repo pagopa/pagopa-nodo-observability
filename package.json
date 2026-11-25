@@ -12,7 +12,7 @@
     "build": "ng build",
     "lint": "ng lint",
     "test": "ng test --watch=false",
-    "test:deployment-config": "node --test scripts/test/deployment-environment.test.mjs scripts/test/release-deploy-workflow.test.mjs scripts/test/release-deploy-aks-workflow.test.mjs",
+    "test:deployment-config": "node --test scripts/test/deployment-environment.test.mjs scripts/test/release-deploy-workflow.test.mjs scripts/test/release-deploy-aks-workflow.test.mjs scripts/test/release-deploy-multi-env-workflow.test.mjs",
     "test:mock": "node --test mocks/test/*.test.mjs",
     "mock": "node mocks/server.mjs",
     "contract:validate": "node mocks/validate-contract.mjs"
