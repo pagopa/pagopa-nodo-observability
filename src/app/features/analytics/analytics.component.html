@@ -1,0 +1,225 @@
+<div class="page-head">
+  <div>
+    <h1>Analytics</h1>
+    <p class="lead">Analisi su aspetti da tenere sotto controllo.</p>
+  </div>
+  <button class="btn o sm" type="button" [disabled]="loading()" (click)="load()">Aggiorna</button>
+</div>
+
+<div class="toolbar analytics-toolbar">
+  <app-time-window [selection]="timeWindow()" />
+  <label class="field"><span>ServiceIdentifier</span>
+    <select aria-label="Identificativo del servizio" [disabled]="catalogLoading() || catalogError() !== null" (change)="updateFromEvent('serviceIdentifier', $event)">
+      <option value="" [selected]="!filters().serviceIdentifier">Tutti</option>
+      @for (identifier of serviceIdentifierOptions(); track identifier) {
+        <option [value]="identifier" [selected]="filters().serviceIdentifier === identifier">
+        {{ identifier }}{{ catalogLoaded() && !serviceIdentifiers().includes(identifier) ? ' (non presente nell’elenco)' : '' }}
+        </option>
+      }
+    </select>
+  </label>
+  <label class="field"><span>PSP</span>
+    <input type="text" [value]="filters().psp" (change)="updateFromEvent('psp', $event)" placeholder="Tutti">
+  </label>
+  <label class="field"><span>Canale</span>
+    <input type="text" [value]="filters().canale" (change)="updateFromEvent('canale', $event)" placeholder="Tutti">
+  </label>
+  <label class="field"><span>Stazione</span>
+    <input type="text" [value]="filters().stazione" (change)="updateFromEvent('stazione', $event)" placeholder="Tutte">
+  </label>
+</div>
+
+@if (catalogLoading()) { <p class="muted analytics-status" role="status">Caricamento elenco degli identificativi di servizio…</p> }
+@if (catalogError(); as message) {
+  <div class="note err analytics-status" role="alert">
+    <span>{{ message }}</span>
+    <button class="btn o sm" type="button" aria-label="Riprova caricamento elenco" [disabled]="catalogLoading()" (click)="retryCatalog()">Riprova</button>
+  </div>
+}
+
+@if (loading()) { <p class="muted analytics-status" role="status">Caricamento dei contatori della finestra selezionata…</p> }
+@if (error(); as message) {
+  <div class="note err analytics-status" role="alert">
+    <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <div>
+      {{ message }}
+      <div class="chips retry-actions"><button class="btn o sm" type="button" (click)="load()">Riprova</button></div>
+    </div>
+  </div>
+}
+
+@if (data(); as value) {
+  @let windowDescription = 'Finestra dal ' + format(value.window.from) + (value.live ? ' ad ora (aggiornata alla richiesta)' : ' al ' + format(value.window.to)) + ' · calcolata alle ' + format(value.generatedAt);
+  <section class="section" aria-labelledby="analytics-counters">
+    <div class="sh analytics-heading">
+      <div>
+          <h2 id="analytics-counters"><code>activatePaymentNotice</code> vs <code>sendPaymentOutcome</code></h2>
+      </div>
+      <p class="chip window-badge" [attr.title]="windowDescription" [attr.aria-label]="windowDescription">
+        <span>
+          Finestra dal <strong>{{ format(value.window.from) }}</strong>
+          @if (value.live) { ad ora } @else { al <strong>{{ format(value.window.to) }}</strong> }
+          · calcolata alle <strong>{{ format(value.generatedAt) }}</strong>
+        </span>
+      </p>
+    </div>
+
+    <div class="kpis analytics-kpis">
+      <div class="kpi metric-card activation-card">
+        <div class="metric-heading"><h3 class="l">activatePaymentNotice positive</h3><span class="metric-tag">paymentToken</span></div>
+        <div class="v">{{ value.activatePaymentNoticeOk.total | number }}</div>
+        @if (breakdowns(); as stacks) {
+          <div class="version-breakdown">
+            <svg class="stack-bar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+              @for (segment of stacks.activation; track segment.label) {
+                <rect [attr.class]="segment.tone" [attr.x]="segment.x" [attr.width]="segment.width" height="10"></rect>
+              }
+            </svg>
+            <ul class="stack-legend version-legend" aria-label="activatePaymentNotice positive per versione">
+              @for (segment of stacks.activation; track segment.label) {
+                <li [class.zero]="segment.count === 0"><span class="legend-name"><span class="swatch {{ segment.tone }}" aria-hidden="true"></span><code>{{ segment.label }}</code></span>{{ ' ' }}<span class="legend-value"><b>{{ segment.count | number }}</b> ({{ segment.share }})</span></li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+      <div class="kpi metric-card">
+        <div class="metric-heading"><h3 class="l">sendPaymentOutcome</h3><span class="metric-tag requests">Richieste</span></div>
+        <div class="v">{{ value.sendPaymentOutcome.total | number }}</div>
+        @if (breakdowns(); as stacks) {
+          <div class="version-breakdown">
+            <svg class="stack-bar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+              @for (segment of stacks.outcome; track segment.label) {
+                <rect [attr.class]="segment.tone" [attr.x]="segment.x" [attr.width]="segment.width" height="10"></rect>
+              }
+            </svg>
+            <ul class="stack-legend version-legend" aria-label="sendPaymentOutcome per versione">
+              @for (segment of stacks.outcome; track segment.label) {
+                <li [class.zero]="segment.count === 0"><span class="legend-name"><span class="swatch {{ segment.tone }}" aria-hidden="true"></span><code>{{ segment.label }}</code></span>{{ ' ' }}<span class="legend-value"><b>{{ segment.count | number }}</b> ({{ segment.share }})</span></li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+      <div class="kpi metric-card">
+        <div class="metric-heading"><h3 class="l">Differenza</h3><span class="metric-tag balance">Saldo grezzo</span></div>
+        <div class="v">{{ difference() }}</div>
+        <div class="balance-explanation">
+          <span class="d"><code>sendPaymentOutcome - activatePaymentNotice</code> positive</span>
+          <p class="d gap-meaning">{{ gapMeaning() }}</p>
+        </div>
+      </div>
+    </div>
+
+    @if (empty()) {
+      <p class="muted analytics-status" role="status">Nessuna activatePaymentNotice positiva né sendPaymentOutcome nella finestra selezionata.</p>
+    }
+
+    <div class="note analytics-status">
+      <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <div>
+        Due conteggi indipendenti: le activatePaymentNotice positive sono token univoci passati a PAYING; le
+        sendPaymentOutcome sono richieste ricevute (deduplicate, con qualunque esito, anche rifiutate). Una richiesta
+        sendPaymentOutcomeV2 può riguardare più token, quindi la differenza è un saldo grezzo: in condizioni normali è
+        vicina a zero, ma ritardi di elaborazione e pagamenti a cavallo dei bordi del periodo possono produrre uno
+        scostamento anche senza anomalie.
+      </div>
+    </div>
+    <section class="section" aria-labelledby="analytics-tokens">
+          <div class="sh">
+              <div>
+                  <h3 id="analytics-tokens">PaymentToken attivati nel periodo: esito osservato</h3>
+                  <p class="sub">
+                      Gli stessi paymentToken conteggiati in «activatePaymentNotice positive», classificati in base agli eventi osservati
+                      alle {{ format(value.generatedAt) }}: annulli e stati finali possono essere successivi alla fine del periodo.
+                  </p>
+              </div>
+              @if (tokenCategories()) {
+                  <p class="tokens-total">
+                      <strong>{{ value.tokens?.total | number }}</strong> paymentToken attivati nel periodo
+                      @if (value.coverage.status === 'UNKNOWN') {
+                          <span class="badge b-warn coverage-badge">Copertura non verificabile</span>
+                      }
+                  </p>
+              }
+          </div>
+
+          @if (tokenCategories(); as categories) {
+              <div class="scroll tokens-card">
+                  <table class="tbl tokens-table">
+                      <caption class="sr-only">Token attivati nel periodo per esito osservato. Le categorie sommano al totale; le righe di dettaglio sommano alla rispettiva categoria.</caption>
+                      <thead><tr><th scope="col">Categoria</th><th scope="col">Cosa significa</th><th scope="col" class="num">Token</th><th scope="col" class="num">Quota</th></tr></thead>
+                      @for (category of categories; track category.key) {
+                          <tbody>
+                          <tr class="tokens-category" [attr.data-category]="category.key">
+                              <th scope="row"><span class="category-label"><span class="category-marker" aria-hidden="true"></span>{{ category.label }}</span></th>
+                              <td>{{ category.meaning }}</td>
+                              <td class="num">{{ category.count | number }}</td>
+                              <td class="num"><span class="share"><svg class="share-bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><rect [attr.width]="category.width" height="8" /></svg><span>{{ category.share }}</span></span></td>
+                          </tr>
+                              @for (item of category.details; track $index) {
+                                  <tr class="tokens-detail">
+                                      <th scope="row">
+                    <span class="detail-label">
+                      <span class="detail-marker" aria-hidden="true">↳</span>
+                      <span>
+                      @if (item.name === null) {
+                          Causa non registrata
+                      } @else {
+                          <code>{{ item.name }}</code>
+                      }
+                          @if (item.hasVia) {
+                              {{ ' · ' }}
+                              @if (item.via === null) {
+                                  causa non registrata
+                              } @else {
+                                  <code>{{ item.via }}</code>
+                              }
+                          }
+                      </span>
+                    </span>
+                                      </th>
+                                      <td><span aria-hidden="true">—</span><span class="sr-only">Dettaglio di {{ category.label }}</span></td>
+                                      <td class="num">{{ item.count | number }}</td>
+                                      <td class="num">{{ item.share }}</td>
+                                  </tr>
+                              }
+                          </tbody>
+                      }
+                      <tfoot>
+                      <tr><th scope="row" colspan="2">Totale token attivati nel periodo</th><td class="num">{{ value.tokens?.total | number }}</td><td class="num">{{ value.tokens?.total ? '100 %' : '—' }}</td></tr>
+                      </tfoot>
+                  </table>
+              </div>
+          } @else {
+              <p class="tokens-total"><strong class="muted">n.d.</strong> Dato non disponibile per questo periodo.</p>
+          }
+          @if (coverageReasons().length > 0 || value.coverage.lastObservedEventAt) {
+              <ul class="coverage-limits" aria-label="Limiti del conteggio">
+                  @for (message of coverageReasons(); track message) {
+                      <li><span aria-hidden="true">⚠</span>{{ ' ' }}{{ message }}</li>
+                  }
+                  @if (value.coverage.lastObservedEventAt; as last) {
+                      <li><span aria-hidden="true">⚠</span>{{ ' ' }}Ultimo evento osservato: {{ format(last) }}. Non garantisce che gli eventi precedenti siano stati tutti acquisiti.</li>
+                  }
+              </ul>
+          }
+
+          <div class="note analytics-status">
+              <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              <div>
+                  Esito accettato non equivale a richiesta ricevuta: le sendPaymentOutcome di «Volumi nel periodo» sono richieste,
+                  anche rifiutate, e una richiesta sendPaymentOutcomeV2 può riguardare più token. Per questo la differenza non misura
+                  token mancanti e non va confrontata con le categorie di questa tabella. Esito accettato osservato = passaggio di
+                  stato causato da sendPaymentOutcome/sendPaymentOutcomeV2: se un evento non è stato acquisito, il token può comparire
+                  in un’altra categoria, quindi i valori possono essere incompleti.
+              </div>
+          </div>
+
+          <div class="chips analytics-status">
+              <span class="badge" [class.b-ok]="value.freshness.status === 'CURRENT'" [class.b-warn]="value.freshness.status !== 'CURRENT'">{{ value.freshness.status }}</span>
+              <span class="chip"><em>Ritardo</em> {{ value.freshness.lagSeconds }} s</span>
+          </div>
+      </section>
+  </section>
+}

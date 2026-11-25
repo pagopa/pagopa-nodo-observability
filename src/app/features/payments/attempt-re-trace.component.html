@@ -1,0 +1,122 @@
+<section aria-label="Cronologia delle primitive da RE">
+  <div class="heading">
+    <h4>Cronologia primitive (RE)</h4>
+    <button
+      class="btn o"
+      type="button"
+      [attr.aria-label]="'Aggiorna cronologia primitive per il tentativo ' + attemptId()"
+      (click)="refresh()"
+      [disabled]="!canRefresh()"
+    >
+      Aggiorna
+    </button>
+  </div>
+  <p class="sub">
+    Tutte le chiamate e i cambi di stato registrati dal Registro Eventi per questo tentativo,
+    ordinati nel tempo. Non modifica la timeline degli stati né la proiezione.
+  </p>
+  @if (!suggestedWindow()) {
+    <p class="note warn">
+      Intervallo RE non proponibile dalla storia del tentativo; usa “Recupera tentativo da RE” per
+      specificare un intervallo UTC.
+    </p>
+  } @else if (!paymentToken().trim() || paymentToken().includes('•')) {
+    <p class="muted">Cronologia non caricabile finché il paymentToken non è disponibile.</p>
+  }
+  @if (check.isLoading()) {
+    <p role="status">Caricamento della cronologia da RE…</p>
+  }
+  @if (error(); as message) {
+    <p class="note err" role="alert">{{ message }}</p>
+  }
+  @if (result(); as chronology) {
+    <div aria-live="polite">
+      @for (warning of chronology.warnings; track $index) {
+        <p class="note warn">{{ warning }}</p>
+      }
+      @if (chronology.truncated) {
+        <p class="note warn">
+          ⚠ Limite RE raggiunto: la cronologia è incompleta e non ha altre pagine disponibili.
+        </p>
+      }
+      @if (chronology.pageLimited) {
+        <p class="note warn">
+          ⚠ Cronologia limitata alle prime pagine; il resto è consultabile con “Recupera tentativo
+          da RE”.
+        </p>
+      }
+      @if (rows().length === 0) {
+        <p role="status">
+          Nessun evento RE per questo intervallo. Questo non dimostra che il Nodo non abbia
+          ricevuto o inviato chiamate: la ricerca richiede codice fiscale EC, NAV e
+          <span class="mono">paymentToken</span> insieme.
+        </p>
+      } @else {
+        @let last = lastRow();
+        @if (last) {
+          <p class="summary">
+            <strong>Ultimo evento ricevuto:</strong>{{ ' ' }}<code>{{ last.primitive }}</code>
+            @switch (last.kind) {
+              @case ('request') {
+                (richiesta)
+              }
+              @case ('response') {
+                (risposta)
+              }
+              @case ('state-change') {
+                (cambio stato <code>{{ last.status }}</code
+                >)
+              }
+            }
+            alle {{ displayTime(last.event) }}.
+            Se una chiamata attesa non compare dopo questo punto, in RE non risulta emessa o
+            ricevuta.
+          </p>
+        }
+        @if (unansweredRows().length > 0) {
+          <p class="note warn" role="status">
+            <span><strong>⚠ Richieste senza risposta in RE:</strong>{{ ' ' }}
+            @for (row of unansweredRows(); track row.id; let isLast = $last) {
+              <code>{{ row.primitive }}</code> ({{ displayTime(row.event) }})@if (!isLast) {
+                ,
+              }
+            }
+            . La risposta potrebbe non essere ancora arrivata o non essere stata registrata.</span>
+          </p>
+        }
+        @if (koRows().length > 0) {
+          <p class="note warn" role="status">
+            <span><strong>⚠ Risposte KO:</strong>{{ ' ' }}
+            @for (group of koGroups(); track group.id; let isLast = $last) {
+              <code>{{ group.primitive }}</code>
+              @if (group.label) {
+                ({{ group.label }})
+              }
+              @if (group.count > 1) {
+                <span class="count">×{{ group.count }}</span>
+              }@if (!isLast) {, }
+            }
+            . L'esito è letto dal payload decodificato: KO se contiene un faultCode, se dichiara outcome KO o se non è una SOAP/JSON.</span>
+          </p>
+        }
+        <app-re-chronology-table
+          [rows]="rows()"
+          [caption]="
+            rows().length +
+            ' eventi restituiti dalla sorgente RE · intervallo [' +
+            chronology.window.from +
+            ', ' +
+            chronology.window.to +
+            ') UTC'
+          "
+        />
+        <p class="small muted">
+          Sono inclusi solo gli eventi con codice fiscale EC, NAV e <span class="mono">paymentToken</span>
+          del tentativo. Le chiamate senza token, come <code>verifyPaymentNotice</code>, compaiono
+          nella cronologia della posizione, consultabile su richiesta. Il payload è consultabile con
+          “Recupera tentativo da RE”.
+        </p>
+      }
+    </div>
+  }
+</section>

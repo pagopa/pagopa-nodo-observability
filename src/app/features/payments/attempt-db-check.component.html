@@ -1,0 +1,72 @@
+<section aria-label="Check DB e consultazione RE del tentativo">
+  <div class="actions" role="group" aria-label="Azioni diagnostiche del tentativo">
+    <button
+      class="btn"
+      type="button"
+      [attr.aria-label]="'Check DB per il tentativo ' + attemptId()"
+      [disabled]="check.isLoading() || !serviceIdentifier()?.trim()"
+      (click)="runCheck()"
+    >
+      Check on DB Replica
+    </button>
+    <ng-content select="[attemptAction]" />
+  </div>
+  @if (!serviceIdentifier()?.trim()) {
+    <p class="muted">Controllo non verificabile: serviceIdentifier non disponibile.</p>
+  }
+  @if (check.isLoading()) {
+    <p role="status">Controllo in corso…</p>
+  }
+  @if (error(); as message) {
+    <p class="note err" role="alert">{{ message }} Usa Check DB per riprovare.</p>
+  }
+  @if (result(); as value) {
+    <div aria-live="polite">
+      <h4>Confronto stati · Check DB</h4>
+      <p>
+        Servizio: <code>{{ value.serviceIdentifier }}</code> · Controllato il {{ checkedAt() }}
+      </p>
+      <p class="small muted">
+        Sorgente: nodo-online · Revisione
+        osservabilità confrontata: {{ value.projectionRevision }}. Il controllo non modifica stati,
+        timeline o warning.
+      </p>
+      @if (stale()) {
+        <p class="note warn" role="status">
+          ⚠ Sono disponibili aggiornamenti della proiezione: controllo da ripetere.
+        </p>
+      }
+      <div class="comparison">
+        <table class="tbl">
+          <caption>
+            Confronto alla data-ora del controllo, non una conferma dell'esito del pagamento
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Entità</th>
+              <th scope="col">Stato osservabilità</th>
+              <th scope="col">Stato DB</th>
+              <th scope="col">Confronto</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.entity) {
+              <tr>
+                <th scope="row">{{ row.entity }}</th>
+                <td>
+                  <code>{{ row.observed }}</code>
+                </td>
+                <td>
+                  <code>{{ row.database ?? 'Record non trovato' }}</code>
+                </td>
+                <td>
+                  <span aria-hidden="true">{{ row.icon }}</span> {{ row.outcome }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</section>

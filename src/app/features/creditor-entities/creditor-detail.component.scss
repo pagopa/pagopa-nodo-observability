@@ -1,0 +1,57 @@
+.detail-status {
+  margin-top: 24px;
+}
+
+.retry-actions {
+  margin-top: 8px;
+}
+
+.snapshot-note {
+  margin-top: 12px;
+}
+
+.logical-state-rows {
+  margin-top: 8px;
+}
+
+.station-notice {
+  margin-bottom: 12px;
+}
+
+.station-traffic {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.station-progress {
+  flex: 0 0 140px;
+  height: 6px;
+  background: var(--soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-graphic {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.progress-graphic rect {
+  fill: var(--primary);
+}
+
+.bar-graphic {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.bar-graphic rect {
+  fill: var(--primary);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

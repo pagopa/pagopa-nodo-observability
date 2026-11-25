@@ -2,7 +2,9 @@ node_modules/
 dist/
 .angular/
 coverage/
+src/environments/environment.deployment.generated.ts
 /.idea/
 /.claude/
 /.worktree/
 /.worktrees/
+/docs/superpowers/

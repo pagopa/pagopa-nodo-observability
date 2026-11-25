@@ -1,0 +1,33 @@
+<section class="login" aria-labelledby="login-title">
+  <h1 id="login-title">Accedi alla console</h1>
+  <p class="lead">
+    Consultazione in sola lettura dello stato dei pagamenti del Nodo pagoPA. Accedi con il tuo
+    account aziendale Microsoft.
+  </p>
+
+  @if (!configured) {
+    <p class="note warn" role="alert">
+      Accesso non configurato: impostare tenant ID e client ID di Azure Entra ID nell’ambiente
+      dell’applicazione.
+    </p>
+  } @else {
+    @if (error(); as message) {
+      <p class="note err" role="alert">{{ message }}</p>
+    }
+    <button
+      type="button"
+      class="btn"
+      (click)="signIn()"
+      [disabled]="redirecting()"
+      [attr.aria-busy]="redirecting()"
+    >
+      <svg class="i" viewBox="0 0 21 21" aria-hidden="true">
+        <rect x="1" y="1" width="9" height="9" class="ms-r" />
+        <rect x="11" y="1" width="9" height="9" class="ms-g" />
+        <rect x="1" y="11" width="9" height="9" class="ms-b" />
+        <rect x="11" y="11" width="9" height="9" class="ms-y" />
+      </svg>
+      {{ redirecting() ? 'Reindirizzamento a Microsoft…' : 'Accedi con Microsoft' }}
+    </button>
+  }
+</section>

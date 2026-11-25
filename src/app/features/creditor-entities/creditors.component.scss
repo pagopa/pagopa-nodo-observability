@@ -1,0 +1,43 @@
+.traffic-note {
+  margin-top: 20px;
+}
+
+.creditor-status {
+  margin-top: 12px;
+}
+
+.empty-results {
+  margin-top: 16px;
+}
+
+.creditor-table {
+  margin-top: 20px;
+}
+
+.creditor-traffic {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.creditor-progress {
+  flex: 0 0 160px;
+  height: 6px;
+  background: var(--soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-graphic {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.progress-graphic rect {
+  fill: var(--primary);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

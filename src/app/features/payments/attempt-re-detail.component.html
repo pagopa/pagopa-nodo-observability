@@ -1,0 +1,169 @@
+<header>
+  <h1 mat-dialog-title>Recupera tentativo da RE</h1>
+  <button
+    class="btn o"
+    type="button"
+    data-re-close
+    (click)="dialog.close()"
+    aria-label="Chiudi consultazione RE"
+  >
+    Chiudi
+  </button>
+</header>
+<mat-dialog-content>
+  <dl class="context">
+    <dt>Codice fiscale EC</dt>
+    <dd>{{ data.paFiscalCode }}</dd>
+    <dt>NAV</dt>
+    <dd>{{ data.noticeNumber }}</dd>
+    <dt>paymentToken</dt>
+    <dd>{{ data.paymentToken }}</dd>
+  </dl>
+  <p class="note">
+    Consultazione diagnostica separata dalla proiezione e dagli aggiornamenti live. Solo eventi con
+    PA + NAV + paymentToken congiuntamente presenti nell'intervallo. Eventi senza queste chiavi,
+    inclusi alcuni REQ, retry e chiamate multi-token, non sono recuperati. L'assenza di eventi non
+    dimostra che il tentativo non esista. Non è una storia completa.
+  </p>
+  @if (!data.suggestedWindow) {
+    <p class="note warn">
+      ⚠ Avvio assente o storia incoerente/futura: specifica un intervallo UTC esplicito.
+    </p>
+  }
+  @if (data.suggestedWindow?.segmented) {
+    <p class="note warn">
+      ⚠ Storia oltre 24 ore: è proposto solo il primo segmento, non l'intera storia. Interroga
+      manualmente i segmenti successivi.
+    </p>
+  }
+  <form (submit)="$event.preventDefault(); retrieve()">
+    <label
+      >Da (UTC)
+      <input
+        #fromInput
+        type="datetime-local"
+        step="0.001"
+        [value]="from()"
+        (input)="changeFrom(fromInput.value)"
+        required
+      />
+    </label>
+    <label
+      >A (UTC, escluso)
+      <input
+        #toInput
+        type="datetime-local"
+        step="0.001"
+        [value]="to()"
+        (input)="changeTo(toInput.value)"
+        required
+      />
+    </label>
+    <button class="btn" type="submit">Recupera eventi</button>
+  </form>
+  @if (validationError(); as message) {
+    <p class="note err" role="alert">{{ message }}</p>
+  }
+  @if (check.isLoading()) {
+    <p role="status">Caricamento degli eventi RE…</p>
+  }
+  @if (error(); as message) {
+    <p class="note err" role="alert">{{ message }}</p>
+    <button class="btn o" type="button" (click)="retrieve()">Riprova con un nuovo recupero</button>
+  }
+  @if (result(); as result) {
+    <p class="note">
+      Sorgente {{ result.source }} · Recuperato il {{ result.retrievedAt }} (UTC). Intervallo
+      interrogato [{{ result.window.from }}, {{ result.window.to }}) UTC. Copertura:
+      {{ result.coverage }}. Pagina {{ page() }} · {{ result.events.length }} eventi.
+    </p>
+    @if (result.truncated) {
+      <p class="note warn">
+        ⚠ Risultato limitato; la consultazione non copre tutti gli eventi dell'intervallo.
+      </p>
+    }
+    @for (warning of result.warnings; track $index) {
+      <p class="note warn">⚠ {{ warning }}</p>
+    }
+    @if (result.events.length === 0) {
+      <p role="status">
+        Nessun evento disponibile in questa finestra. Non è una prova di assenza del tentativo.
+      </p>
+    } @else {
+      <div class="browser">
+        <section aria-label="Eventi RE">
+          <table class="tbl">
+            <caption>
+              Ordine cronologico RE · timestamp sorgente originali, fuso non dedotto
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Evento</th>
+                <th scope="col">Inserimento</th>
+                <th scope="col">Primitiva / categoria</th>
+                <th scope="col">Esito / status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (event of result.events; track $index) {
+                <tr>
+                  <td>
+                    <button
+                      class="linkbtn"
+                      type="button"
+                      [attr.aria-current]="selectedIndex() === $index"
+                      (click)="selectedIndex.set($index)"
+                    >
+                      Evt {{ $index + 1 }}
+                    </button>
+                  </td>
+                  <td>{{ event.insertedTimestamp ?? 'null' }}</td>
+                  <td>
+                    {{ event.tipoEvento ?? 'null' }}<br />{{ event.categoriaEvento ?? 'null' }} /
+                    {{ event.sottoTipoEvento ?? 'null' }}
+                  </td>
+                  <td>{{ event.esito ?? 'null' }}<br />{{ event.status ?? 'null' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+        @if (selected(); as event) {
+          <section aria-label="Dettaglio evento RE">
+            <h3>Evento {{ selectedIndex() + 1 }} · {{ event.tipoEvento ?? 'null' }}</h3>
+            <h4>Payload decodificato (solo testo)</h4>
+            @if (payloadMessage(); as message) {
+              <p class="note" role="status">{{ message }}</p>
+            }
+            @if (event.payloadOmitted) {
+              <p>
+                Dimensione sorgente: {{ event.payloadSourceBytes }} byte. Vista completa non
+                disponibile per questo payload.
+              </p>
+            }
+            @if (event.payloadDecoded.reason) {
+              <p>{{ event.payloadDecoded.reason }}</p>
+            }
+            @if (event.payloadDecoded.status === 'DECODED') {
+              <pre tabindex="0" aria-label="Payload decodificato">{{
+                event.payloadDecoded.text
+              }}</pre>
+            }
+            <h4>Tutti i 33 campi sorgente RE</h4>
+            <dl class="fields" aria-label="Campi sorgente RE">
+              @for (field of fields(); track field.name) {
+                <dt>{{ field.name }}</dt>
+                <dd>{{ field.value }}</dd>
+              }
+            </dl>
+          </section>
+        }
+      </div>
+    }
+    @if (result.nextCursor) {
+      <button class="btn o" type="button" (click)="nextPage()" [disabled]="check.isLoading()">
+        Pagina successiva
+      </button>
+    }
+  }
+</mat-dialog-content>

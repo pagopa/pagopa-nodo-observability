@@ -1,0 +1,382 @@
+<a class="crumb" routerLink="/payments" [queryParams]="route.snapshot.queryParams">← Pagamenti</a>
+@if (loading()) {
+  <p class="muted" role="status">Caricamento dettaglio e apertura aggiornamenti live…</p>
+}
+@if (error(); as message) {
+  <div class="note err" role="alert">
+    <div>
+      {{ message }} <button class="linkbtn" type="button" (click)="retry()">Riprova</button>
+    </div>
+  </div>
+}
+@if (payment(); as item) {
+  @if (detail(); as view) {
+    <div class="page-head">
+      <div>
+        <h1>Dettaglio pagamento</h1>
+        <div class="idline">
+          <div>
+            <span>Codice fiscale EC</span><b>{{ item.paFiscalCode }}</b>
+          </div>
+          <div>
+            <span>NAV</span><b>{{ item.noticeNumber }}</b>
+          </div>
+        </div>
+      </div>
+      <div class="payment-status-summary">
+        <span class="small muted"
+          >Stato pagamento <app-state-badge [presentation]="view.logical.current"
+        /></span>
+        <div class="chips payment-status-chips">
+          @if (item.warning) {
+            <span class="badge b-warn">⚠ Tentativo non risolto</span>
+          }
+          @if (item.hasAnomaly) {
+            <span class="badge b-err">⚠ Contiene anomalia</span>
+          }
+        </div>
+        <span class="small muted"
+          ><span class="dot"></span> Aggiornato in tempo reale · revisione
+          {{ item.projectionRevision }}</span
+        >
+      </div>
+    </div>
+    @if (item.warning) {
+      <div class="note warn">
+        <div>
+          <strong>⚠ Tentativo non risolto.</strong> Il warning resta associato al token interessato
+          fino alla risoluzione e non cambia lo stato complessivo del pagamento.
+        </div>
+      </div>
+    }
+    @if (item.hasAnomaly) {
+      <div class="note err">
+        <div>
+          <strong>⚠ Anomalia sulla data-ora.</strong> Una transizione è stata registrata senza
+          data-ora valida: lo stato resta visibile ed è escluso dai calcoli di durata e di
+          andamento.
+        </div>
+      </div>
+    }
+    @if (item.timelineIncomplete) {
+      <div class="note">
+        <div>La timeline è marcata incompleta dal servizio di osservabilità.</div>
+      </div>
+    }
+    <section class="section" aria-label="Riepilogo posizione e tentativi">
+      <div class="position-state">
+        <h2>Stato posizione</h2>
+        <app-state-badge [presentation]="view.logical.current" />
+      </div>
+      <h3>Tentativi disponibili in retention ({{ view.attempts.length }})</h3>
+      <p class="sub">
+        Solo record disponibili nei 60 giorni per tentativo, non il totale storico. Nessun cambio
+        della posizione è attribuito a un token dal solo stato o dalle date.
+      </p>
+      <ul>
+        @for (attempt of view.attempts; track attempt.id) {
+          <li>
+            <a
+              [routerLink]="[]"
+              [queryParams]="{ attemptId: attempt.id }"
+              queryParamsHandling="merge"
+              [fragment]="'attempt-' + attempt.id"
+              >Tentativo {{ attempt.id }}</a
+            >
+            · <app-state-badge [presentation]="attempt.progression.current" />
+          </li>
+        } @empty {
+          <li>Non sono disponibili tentativi in retention.</li>
+        }
+      </ul>
+      @if (view.selectedAttemptUnavailable) {
+        <p class="note" role="status">
+          Il tentativo selezionato non è più disponibile: potrebbe essere scaduto per retention.
+          Nessun altro tentativo viene selezionato automaticamente.
+        </p>
+      }
+      @for (explanation of view.explanations; track $index) {
+        <p class="note">{{ explanation }}</p>
+      }
+    </section>
+    <section class="section">
+      <div class="sh">
+        <div>
+          <h2>Pagamento</h2>
+          <p class="sub">
+            Stato della posizione identificata da codice fiscale EC + NAV. Non è calcolato contando
+            i tentativi.
+          </p>
+        </div>
+      </div>
+      <div class="flow" aria-label="Progressione FSM del pagamento logico">
+        <app-state-progression [progression]="view.logical" />
+      </div>
+      <p class="loopnote">
+        Dopo un tentativo annullato la posizione torna a INSERTED e può ricevere un nuovo tentativo.
+      </p>
+      <details class="seq">
+        <summary>Sequenza delle transizioni ({{ item.timeline.length }})</summary>
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Stato pagamento</th>
+              <th scope="col">Data-ora</th>
+              <th scope="col">Primitiva / trigger</th>
+              <th scope="col">Provenienza</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (entry of view.logical.visits; track entry.id) {
+              <tr>
+                <td>{{ entry.id + 1 }}</td>
+                <td><app-state-badge [presentation]="entry.presentation" /></td>
+                <td>{{ entry.time }}</td>
+                <td>
+                  <code>{{ entry.trigger }}</code>
+                </td>
+                <td>{{ entry.provenance }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="muted">Nessuna transizione logica disponibile.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </details>
+    </section>
+    @let position = positionWindow();
+    @if (position) {
+      <app-payment-re-position
+        [paFiscalCode]="item.paFiscalCode"
+        [noticeNumber]="item.noticeNumber"
+        [attemptId]="position.attemptId"
+        [window]="position.window"
+      />
+    }
+    <section class="section">
+      <div class="sh">
+        <div>
+          <h2>Tentativi ({{ item.attempts.length }})</h2>
+          <p class="sub">
+            Ogni <span class="mono">paymentToken</span> ha stato e storia propri. I tentativi
+            disponibili restano consultabili indipendentemente dallo stato della posizione.
+          </p>
+        </div>
+      </div>
+      @for (attempt of item.attempts; track attempt.attemptId; let i = $index) {
+        @let attemptView = view.attempts[i];
+        <article class="attempt" [class.unres]="attempt.warning">
+          <div class="attempt-h">
+            <div class="l">
+              <h3 class="attempt-title" [id]="'attempt-' + attempt.attemptId" tabindex="-1">
+                Tentativo {{ attempt.attemptId }}
+              </h3>
+              <app-state-badge [presentation]="attemptView.progression.current" />
+              @if (attempt.warning) {
+                <span class="badge b-warn">⚠ Non risolto</span>
+              }
+              @if (attempt.hasAnomaly) {
+                <span class="badge b-err">⚠ Anomalia</span>
+              }
+              @if (selectedAttemptId() === attempt.attemptId) {
+                <span class="badge b-info"
+                  >Tentativo selezionato dalla ricerca token o dal riepilogo</span
+                >
+              }
+            </div>
+            <div class="tok-wrap">
+              <span class="tok-label">paymentToken</span>
+              <code class="tok">
+                @if (tokenRevealErrors()[attempt.attemptId]; as error) {
+                  <span role="alert">{{ error }}</span>
+                } @else {
+                  {{ displayToken(attempt) }}
+                }
+              </code>
+            </div>
+          </div>
+          @if (attempt.warning) {
+            <div class="note warn attempt-warning">
+              <div>
+                <strong>⚠ {{ attempt.state }}.</strong> Stato non risolto: resta evidenziato finché
+                il tentativo non evolve.
+              </div>
+            </div>
+          }
+          @if (attemptView.incomplete) {
+            <p class="note attempt-incomplete">
+              Storia del tentativo incompleta, secondo il servizio di osservabilità.
+            </p>
+          }
+          <div class="meta">
+            <div>
+              <span>serviceIdentifier</span
+              ><b>{{ attempt.serviceIdentifier || 'non disponibile' }}</b>
+            </div>
+            <div>
+              <span>PSP</span><b>{{ attempt.psp || 'non disponibile' }}</b>
+            </div>
+            <div>
+              <span>Canale</span><b>{{ attempt.canale || 'non disponibile' }}</b>
+            </div>
+            <div>
+              <span>Stazione</span><b>{{ attempt.stazione || 'non disponibile' }}</b>
+            </div>
+            <div>
+              <span>Avvio del tentativo</span><b>{{ format(attempt.attemptStartedAt) }}</b>
+            </div>
+          </div>
+          <app-attempt-db-check
+            [attemptId]="attempt.attemptId"
+            [paFiscalCode]="item.paFiscalCode"
+            [noticeNumber]="item.noticeNumber"
+            [serviceIdentifier]="attempt.serviceIdentifier"
+            [projectionRevision]="item.projectionRevision"
+          >
+            <button
+              attemptAction
+              class="btn o"
+              type="button"
+              (click)="openRe(attempt)"
+              [disabled]="pendingTokenIds().has(attempt.attemptId) || !!tokenRevealErrors()[attempt.attemptId]"
+            >
+              Recupera tentativo da RE
+            </button>
+          </app-attempt-db-check>
+          <div class="flow" aria-label="Progressione FSM del tentativo">
+            <app-state-progression [progression]="attemptView.progression" />
+          </div>
+          <details class="seq">
+            <summary>Sequenza delle transizioni ({{ attempt.timeline.length }})</summary>
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Stato tentativo</th>
+                  <th scope="col">Data-ora</th>
+                  <th scope="col">Primitiva / trigger</th>
+                  <th scope="col">Provenienza</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (entry of attemptView.progression.visits; track entry.id) {
+                  <tr>
+                    <td>{{ entry.id + 1 }}</td>
+                    <td><app-state-badge [presentation]="entry.presentation" /></td>
+                    <td>{{ entry.time }}</td>
+                    <td>
+                      <code>{{ entry.trigger }}</code>
+                    </td>
+                    <td>{{ entry.provenance }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="muted">
+                      Nessuna transizione del tentativo disponibile.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </details>
+          <app-attempt-re-trace
+            [attemptId]="attempt.attemptId"
+            [paFiscalCode]="item.paFiscalCode"
+            [noticeNumber]="item.noticeNumber"
+            [paymentToken]="rePaymentToken(attempt)"
+            [suggestedWindow]="reWindows().get(attempt.attemptId) ?? null"
+            [projectionRevision]="item.projectionRevision"
+          />
+        </article>
+      } @empty {
+        <p class="empty-lock">Non sono disponibili tentativi in retention.</p>
+      }
+    </section>
+    <section class="section">
+      <div class="sh">
+        <div>
+          <h2>
+            Destinatari ricevuta · record disponibili
+            @if (view.recipients; as recipients) {
+              ({{ recipients.length }})
+            }
+          </h2>
+          <p class="sub">
+            Destinatari della posizione, con stato e storia propri. Nessuna associazione al token o
+            attribuzione della PA intestataria è dedotta dal client. Il completamento dipende dalle
+            risposte di tutti i destinatari previsti, alle condizioni del servizio, non da conteggi
+            locali. I record disponibili non certificano l’insieme completo dei destinatari.
+          </p>
+        </div>
+      </div>
+      @if (view.recipientError; as message) {
+        <p class="note err" role="alert">{{ message }}</p>
+      }
+      @if (view.recipients; as recipients) {
+        @for (recipient of item.recipients; track recipient.recipientId; let i = $index) {
+          @let recipientView = recipients[i];
+          <article class="attempt">
+            <div class="attempt-head">
+              <div class="titles">
+                <h3 class="attempt-title" [id]="'recipient-' + recipient.recipientId">
+                  Destinatario {{ recipient.stazioneRecipient || 'stazione non disponibile' }}
+                </h3>
+                <app-state-badge [presentation]="recipientView.progression.current" />
+                @if (recipient.hasAnomaly) {
+                  <span class="badge b-err">⚠ Anomalia</span>
+                }
+                @if (recipient.timelineIncomplete) {
+                  <span class="badge b-info">Storia incompleta</span>
+                }
+              </div>
+            </div>
+            <div class="flow" aria-label="Progressione FSM del destinatario ricevuta">
+              <app-state-progression [progression]="recipientView.progression" />
+            </div>
+            <details class="seq">
+              <summary>Sequenza delle transizioni ({{ recipient.timeline.length }})</summary>
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Stato destinatario</th>
+                    <th scope="col">Data-ora</th>
+                    <th scope="col">Primitiva / trigger</th>
+                    <th scope="col">Provenienza</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (entry of recipientView.progression.visits; track entry.id) {
+                    <tr>
+                      <td>{{ entry.id + 1 }}</td>
+                      <td><app-state-badge [presentation]="entry.presentation" /></td>
+                      <td>{{ entry.time }}</td>
+                      <td>
+                        <code>{{ entry.trigger }}</code>
+                      </td>
+                      <td>{{ entry.provenance }}</td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="5" class="muted">
+                        Nessuna transizione del destinatario disponibile.
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </details>
+          </article>
+        } @empty {
+          <p class="empty-lock">
+            Nessun record destinatario disponibile; non è una conferma di assenza di destinatari
+            previsti.
+          </p>
+        }
+      }
+    </section>
+  }
+}

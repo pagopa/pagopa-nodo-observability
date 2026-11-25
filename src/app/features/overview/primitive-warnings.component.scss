@@ -1,0 +1,28 @@
+:host {
+  display: block;
+}
+
+.warnings {
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-6);
+  border-inline-start: 3px solid var(--primary);
+}
+
+.warnings-table {
+  .mono {
+    font-family: var(--mono-system);
+  }
+
+  .not-available {
+    color: var(--muted);
+    font-style: italic;
+  }
+}
+
+.warnings-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.warnings-note {
+  margin-top: var(--space-2);
+}

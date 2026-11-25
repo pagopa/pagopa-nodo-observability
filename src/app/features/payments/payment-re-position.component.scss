@@ -1,0 +1,26 @@
+:host {
+  display: block;
+  margin-block: var(--space-3);
+}
+
+section {
+  border-inline-start: 3px solid var(--primary);
+  padding: var(--space-3);
+  background: var(--soft);
+}
+
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+h3 {
+  margin: 0;
+}
+
+.summary {
+  margin-block: var(--space-1-5);
+}
