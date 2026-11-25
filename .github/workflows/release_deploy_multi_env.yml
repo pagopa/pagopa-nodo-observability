@@ -1,4 +1,4 @@
-name: Release And Deploy AKS
+name: Release And Deploy (Multi-env)
 
 # Manual/called only: merged PRs are released by release_deploy.yml, so a pull_request
 # trigger here would bump the version twice.
