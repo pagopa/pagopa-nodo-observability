@@ -28,8 +28,8 @@ export function fixtures(now) {
       ], age: 3
     },
     {
-      logical: [['PAYING', 'activatePaymentNotice'], ['INSERTED', 'closePayment']],
-      attempts: [[['PAYING', 'activatePaymentNotice'], ['CANCELLED', 'closePayment']]], age: 59.9
+      logical: [['PAYING', 'activatePaymentNotice'], ['INSERTED', 'mod3Cancel']],
+      attempts: [[['PAYING', 'activatePaymentNotice'], ['CANCELLED', 'mod3Cancel']]], age: 59.9
     },
     {
       logical: [['PAYING', 'activatePaymentNoticeV2']],
@@ -208,6 +208,60 @@ export function primitiveWarnings(payments, window, now, live, primitive) {
       canale: attempt.canale, paFiscalCode: payment.paFiscalCode, stazione: attempt.stazione }))
     .sort((a, b) => b.calledAt.localeCompare(a.calledAt) || a.paFiscalCode.localeCompare(b.paFiscalCode)
       || String(a.stazione).localeCompare(String(b.stazione)) || String(a.psp).localeCompare(String(b.psp)));
+}
+
+// Activations with a positive outcome (attempts moved to PAYING by activatePaymentNotice V1/V2, one per token) and
+// sendPaymentOutcome V1/V2 requests (any outcome) in the same window. The mock has no RE events, so both counts come
+// from the dated transitions of the fixtures; `live` keeps the window open on the right. Activated tokens of the window
+// without an accepted sendPaymentOutcome (any time up to now) are split into cancelled by the mod3Cancel/mod3CancelV2
+// cron, still in progress (mock simplification: never CANCELLED) and other. Like the backend, a window starting before
+// the 60-day retention has no counts (RETENTION) and ingestion gaps/delay make them incomplete.
+const FINAL_ATTEMPT_STATES = ['CANCELLED', 'FAILED', 'PAID', 'NOTICE_STORED', 'NOTIFIED'];
+
+export function activationsOutcomes(payments, window, live = false, now = Date.now()) {
+  const inWindow = value => value !== null && value !== undefined && Date.parse(value) >= Date.parse(window.from)
+    && (live || Date.parse(value) < Date.parse(window.to));
+  const activations = { total: 0, activatePaymentNotice: 0, activatePaymentNoticeV2: 0 };
+  const outcomes = { total: 0, sendPaymentOutcome: 0, sendPaymentOutcomeV2: 0 };
+  const tokens = { total: 0, acceptedOutcome: { total: 0, sendPaymentOutcome: 0, sendPaymentOutcomeV2: 0 },
+    cancelledByMod3Cancel: { total: 0, mod3Cancel: 0, mod3CancelV2: 0 },
+    otherCancelled: { total: 0, byCause: [] }, nonTerminal: { total: 0, byState: [] }, otherTerminal: { total: 0, byState: [] } };
+  const bump = (category, list, match) => {
+    category.total++;
+    const found = category[list].find(item => Object.entries(match).every(([k, v]) => item[k] === v));
+    if (found) found.count++; else category[list].push({ ...match, count: 1 });
+  };
+  let lastObserved = null;
+  for (const attempt of payments.flatMap(p => p.attempts)) {
+    const known = attempt.timeline.filter(t => t.timestampBasis !== 'ANOMALY');
+    for (const t of known) if (t.transitionAt && Date.parse(t.transitionAt) <= now
+      && (lastObserved === null || Date.parse(t.transitionAt) > Date.parse(lastObserved))) lastObserved = t.transitionAt;
+    const dated = known.filter(t => inWindow(t.transitionAt));
+    const activation = dated.find(t => t.state === 'PAYING' && /^activatePaymentNotice(V2)?$/.test(t.trigger ?? ''));
+    if (activation) {
+      activations[activation.trigger]++;
+      const accepted = known.find(t => /^sendPaymentOutcome(V2)?$/.test(t.trigger ?? ''));
+      const last = known.at(-1);
+      const cause = last.trigger ?? null;
+      if (accepted) { tokens.acceptedOutcome.total++; tokens.acceptedOutcome[accepted.trigger]++; }
+      else if (last.state === 'CANCELLED' && /^mod3Cancel(V2)?$/.test(cause ?? '')) {
+        tokens.cancelledByMod3Cancel.total++; tokens.cancelledByMod3Cancel[cause]++;
+      } else if (last.state === 'CANCELLED') bump(tokens.otherCancelled, 'byCause', { cause });
+      else if (FINAL_ATTEMPT_STATES.includes(last.state)) bump(tokens.otherTerminal, 'byState', { state: last.state, cause });
+      else bump(tokens.nonTerminal, 'byState', { state: last.state });
+    }
+    for (const t of dated) if (/^sendPaymentOutcome(V2)?$/.test(t.trigger ?? '')) outcomes[t.trigger]++;
+  }
+  activations.total = activations.activatePaymentNotice + activations.activatePaymentNoticeV2;
+  outcomes.total = outcomes.sendPaymentOutcome + outcomes.sendPaymentOutcomeV2;
+  tokens.total = activations.total;
+  const retained = Date.parse(window.from) >= now - 60 * DAY;
+  return { activatePaymentNoticeOk: activations, sendPaymentOutcome: outcomes,
+    difference: outcomes.total - activations.total,
+    tokens: retained ? tokens : null,
+    coverage: retained
+      ? { status: 'UNKNOWN', reasons: ['NO_INGESTION_WATERMARK'], lastObservedEventAt: lastObserved }
+      : { status: 'UNAVAILABLE', reasons: ['RETENTION'], lastObservedEventAt: null } };
 }
 
 // `live` keeps the window open on the right (rolling preset ranges): activity after `to` still counts.

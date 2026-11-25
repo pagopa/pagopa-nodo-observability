@@ -28,6 +28,9 @@
       "name": "overview"
     },
     {
+      "name": "analytics"
+    },
+    {
       "name": "creditors"
     },
     {
@@ -746,6 +749,37 @@
           "500": {
             "$ref": "#/components/responses/E500"
           }
+        }
+      }
+    },
+    "/api/analytics/activations-outcomes": {
+      "get": {
+        "tags": ["analytics"],
+        "operationId": "getActivationsOutcomes",
+        "summary": "Attivazioni con esito positivo e sendPaymentOutcome nella stessa finestra",
+        "description": "Confronta, sulla stessa finestra, le attivazioni con esito positivo (activatePaymentNotice V1/V2: eventi RE `payment_PAYING`, un conteggio per token univoco) con le richieste sendPaymentOutcome V1/V2 (eventi RE INTERFACCIA, qualunque esito, deduplicate). `difference` = `sendPaymentOutcome.total - activatePaymentNoticeOk.total` è un saldo grezzo di richieste (negativo se le sendPaymentOutcome sono meno delle attivazioni; una richiesta V2 può riguardare più token). `tokens` classifica gli stessi token delle attivazioni positive per esito osservato fino al momento della richiesta (esito sendPaymentOutcome accettato osservato, annullati dal cron mod3Cancel/mod3CancelV2, altri annullamenti, stato finale non osservato, altri stati finali); è una misura distinta da `difference`, che non misura token mancanti; `coverage` indica se la copertura dell'ingestione è verificabile (UNKNOWN) o se i dati non sono disponibili (UNAVAILABLE, `tokens` null). In assenza di anomalie i due valori sono vicini, ma ritardi di elaborazione e pagamenti in corso ai bordi della finestra possono produrre differenze. Finestra predefinita: ultimi 60 minuti; massimo 60 giorni; finestra effettiva allineata al minuto, `to` null quando `live`. Ammessi solo i filtri serviceIdentifier, psp, canale e stazione (anche `~unknown`): altri parametri restituiscono 400. Un utente con visibilità ristretta a un ente creditore riceve 403.",
+        "parameters": [
+          { "$ref": "#/components/parameters/serviceIdentifier" },
+          { "$ref": "#/components/parameters/psp" },
+          { "$ref": "#/components/parameters/canale" },
+          { "$ref": "#/components/parameters/stazione" },
+          { "$ref": "#/components/parameters/from" },
+          { "$ref": "#/components/parameters/to" },
+          { "$ref": "#/components/parameters/live" }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ActivationsOutcomes" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/E400" },
+          "401": { "$ref": "#/components/responses/E401" },
+          "403": { "$ref": "#/components/responses/E403" },
+          "500": { "$ref": "#/components/responses/E500" }
         }
       }
     },
@@ -2159,6 +2193,111 @@
           "aggregateFilterPolicy"
         ],
         "description": "I valori delle dimensioni sono ordinati e limitati agli enti visibili; null indica dimensione non disponibile (filtrabile con ~unknown)."
+      },
+      "ActivationsOutcomes": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Contatori di attivazioni con esito positivo e sendPaymentOutcome sulla stessa finestra. Nessun payload.",
+        "properties": {
+          "window": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Finestra effettiva, allineata al minuto.",
+            "properties": {
+              "from": { "type": "string", "format": "date-time" },
+              "to": { "type": ["string", "null"], "format": "date-time", "description": "null quando la finestra è live (aperta a destra)." }
+            },
+            "required": ["from", "to"]
+          },
+          "live": { "type": "boolean" },
+          "activatePaymentNoticeOk": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Attivazioni con esito positivo: token univoci passati a PAYING tramite activatePaymentNotice V1/V2.",
+            "properties": {
+              "total": { "type": "integer", "minimum": 0 },
+              "activatePaymentNotice": { "type": "integer", "minimum": 0 },
+              "activatePaymentNoticeV2": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["total", "activatePaymentNotice", "activatePaymentNoticeV2"]
+          },
+          "sendPaymentOutcome": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Richieste sendPaymentOutcome V1/V2 deduplicate, qualunque esito.",
+            "properties": {
+              "total": { "type": "integer", "minimum": 0 },
+              "sendPaymentOutcome": { "type": "integer", "minimum": 0 },
+              "sendPaymentOutcomeV2": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["total", "sendPaymentOutcome", "sendPaymentOutcomeV2"]
+          },
+          "difference": { "type": "integer", "description": "Saldo grezzo di richieste: sendPaymentOutcome.total - activatePaymentNoticeOk.total; negativo se le sendPaymentOutcome sono meno delle attivazioni. Non è un conteggio di token: una richiesta V2 può riguardare più token." },
+          "tokens": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "description": "Gli stessi token di activatePaymentNoticeOk (stessi filtri), classificati per esito osservato fino al momento della richiesta, anche dopo la fine della finestra. total = activatePaymentNoticeOk.total = somma delle cinque categorie; ogni dettaglio somma al totale della propria categoria. acceptedOutcome: transizione causata da sendPaymentOutcome/V2 osservata; le altre categorie non hanno tale transizione osservata. null quando coverage.status è UNAVAILABLE. Misura distinta da difference.",
+            "properties": {
+              "total": { "type": "integer", "minimum": 0 },
+              "acceptedOutcome": {
+                "type": "object", "additionalProperties": false,
+                "properties": { "total": { "type": "integer", "minimum": 0 }, "sendPaymentOutcome": { "type": "integer", "minimum": 0 }, "sendPaymentOutcomeV2": { "type": "integer", "minimum": 0 } },
+                "required": ["total", "sendPaymentOutcome", "sendPaymentOutcomeV2"]
+              },
+              "cancelledByMod3Cancel": {
+                "type": "object", "additionalProperties": false,
+                "description": "Token CANCELLED dal cron mod3Cancel/mod3CancelV2 senza esito accettato osservato.",
+                "properties": { "total": { "type": "integer", "minimum": 0 }, "mod3Cancel": { "type": "integer", "minimum": 0 }, "mod3CancelV2": { "type": "integer", "minimum": 0 } },
+                "required": ["total", "mod3Cancel", "mod3CancelV2"]
+              },
+              "otherCancelled": {
+                "type": "object", "additionalProperties": false,
+                "description": "Token CANCELLED per causa diversa dal cron (es. closePayment-v2).",
+                "properties": {
+                  "total": { "type": "integer", "minimum": 0 },
+                  "byCause": { "type": "array", "items": { "type": "object", "additionalProperties": false,
+                    "properties": { "cause": { "type": ["string", "null"] }, "count": { "type": "integer", "minimum": 0 } }, "required": ["cause", "count"] } }
+                },
+                "required": ["total", "byCause"]
+              },
+              "nonTerminal": {
+                "type": "object", "additionalProperties": false,
+                "description": "Ultimo stato osservato non finale: stato finale non osservato (in corso o eventi non acquisiti).",
+                "properties": {
+                  "total": { "type": "integer", "minimum": 0 },
+                  "byState": { "type": "array", "items": { "type": "object", "additionalProperties": false,
+                    "properties": { "state": { "type": "string" }, "count": { "type": "integer", "minimum": 0 } }, "required": ["state", "count"] } }
+                },
+                "required": ["total", "byState"]
+              },
+              "otherTerminal": {
+                "type": "object", "additionalProperties": false,
+                "description": "Altro stato finale (diverso da CANCELLED) senza esito accettato osservato.",
+                "properties": {
+                  "total": { "type": "integer", "minimum": 0 },
+                  "byState": { "type": "array", "items": { "type": "object", "additionalProperties": false,
+                    "properties": { "state": { "type": "string" }, "cause": { "type": ["string", "null"] }, "count": { "type": "integer", "minimum": 0 } }, "required": ["state", "cause", "count"] } }
+                },
+                "required": ["total", "byState"]
+              }
+            },
+            "required": ["total", "acceptedOutcome", "cancelledByMod3Cancel", "otherCancelled", "nonTerminal", "otherTerminal"]
+          },
+          "coverage": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Copertura dell'ingestione per tokens. UNKNOWN (normalmente con NO_INGESTION_WATERMARK): dati osservati, copertura non verificabile. UNAVAILABLE (es. RETENTION): tokens null. lastObservedEventAt non garantisce la completezza.",
+            "properties": {
+              "status": { "type": "string", "enum": ["UNKNOWN", "UNAVAILABLE"] },
+              "reasons": { "type": "array", "items": { "type": "string" } },
+              "lastObservedEventAt": { "type": ["string", "null"], "format": "date-time" }
+            },
+            "required": ["status", "reasons", "lastObservedEventAt"]
+          },
+          "freshness": { "$ref": "#/components/schemas/Freshness" },
+          "generatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["window", "live", "activatePaymentNoticeOk", "sendPaymentOutcome", "difference", "tokens", "coverage", "freshness", "generatedAt"]
       },
       "Freshness": {
         "type": "object",

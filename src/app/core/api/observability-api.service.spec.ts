@@ -66,6 +66,51 @@ describe('ObservabilityApi catalog', () => {
     await failed;
   });
 
+  it('sends only the window and dimension filters to the analytics endpoint and rejects inconsistent totals', async () => {
+    const api = TestBed.inject(ObservabilityApi);
+    const response = { window: { from: '2026-11-24T09:00:00.000Z', to: null }, live: true,
+      activatePaymentNoticeOk: { total: 5, activatePaymentNotice: 2, activatePaymentNoticeV2: 3 },
+      sendPaymentOutcome: { total: 4, sendPaymentOutcome: 1, sendPaymentOutcomeV2: 3 }, difference: -1,
+      tokens: { total: 5, acceptedOutcome: { total: 2, sendPaymentOutcome: 1, sendPaymentOutcomeV2: 1 },
+        cancelledByMod3Cancel: { total: 1, mod3Cancel: 0, mod3CancelV2: 1 },
+        otherCancelled: { total: 1, byCause: [{ cause: null as string | null, count: 1 }] },
+        nonTerminal: { total: 1, byState: [{ state: 'PAYING', count: 1 }] },
+        otherTerminal: { total: 0, byState: [] as { state: string; cause: string | null; count: number }[] } },
+      coverage: { status: 'UNKNOWN', reasons: ['NO_INGESTION_WATERMARK'], lastObservedEventAt: '2026-11-24T09:59:00.000Z' as string | null },
+      freshness: { status: 'CURRENT', lagSeconds: 2, gapsDetected: false, observedAt: '2026-11-24T10:00:00.000Z',
+        lastProcessedAt: '2026-11-24T10:00:00.000Z', lastPublishedAt: '2026-11-24T10:00:00.000Z' },
+      generatedAt: '2026-11-24T10:00:00.000Z' };
+    const result = firstValueFrom(api.activationsOutcomes({ from: '2026-11-24T09:00:00.000Z', to: '2026-11-24T10:00:00.000Z',
+      live: 'true', psp: 'ABI00001', stazione: '~unknown', serviceIdentifier: '', paFiscalCode: '00000000001', logicalState: 'PAID' }));
+    const request = expectPath('/api/analytics/activations-outcomes');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.keys().sort()).toEqual(['from', 'live', 'psp', 'stazione', 'to']);
+    request.flush(response);
+    await expect(result).resolves.toEqual(response);
+
+    const invalid = firstValueFrom(api.activationsOutcomes({}));
+    const failed = expect(invalid).rejects.toThrow('Risposta di analytics non valida');
+    expectPath('/api/analytics/activations-outcomes').flush({ ...response, difference: 0 });
+    await failed;
+
+    const unavailable = { status: 'UNAVAILABLE', reasons: ['RETENTION'], lastObservedEventAt: null };
+    const tokens = response.tokens;
+    for (const body of [{ ...response, difference: 1 }, { ...response, tokens: undefined },
+      { ...response, tokens: { ...tokens, total: 6 } },
+      { ...response, tokens: { ...tokens, nonTerminal: { total: 1, byState: [{ state: 'PAYING', count: 2 }] } } },
+      { ...response, tokens: { ...tokens, otherTerminal: { total: 0, byState: [{ state: 'FAILED', cause: 1, count: 0 }] } } },
+      { ...response, tokens: null },
+      { ...response, coverage: unavailable },
+      { ...response, coverage: { ...response.coverage, status: 'COMPLETE' } }]) {
+      const rejected = expect(firstValueFrom(api.activationsOutcomes({}))).rejects.toThrow('Risposta di analytics non valida');
+      expectPath('/api/analytics/activations-outcomes').flush(body);
+      await rejected;
+    }
+    const accepted = firstValueFrom(api.activationsOutcomes({}));
+    expectPath('/api/analytics/activations-outcomes').flush({ ...response, tokens: null, coverage: unavailable });
+    await expect(accepted).resolves.toEqual({ ...response, tokens: null, coverage: unavailable });
+  });
+
   it('rejects a malformed Nodo microservices payload', async () => {
     const result = firstValueFrom(TestBed.inject(ObservabilityApi).nodeServices());
     const failed = expect(result).rejects.toThrow('Risposta delle istanze del Nodo non valida');

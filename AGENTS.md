@@ -38,6 +38,7 @@ src/app/
     overview/            # panoramica / dashboard
     payments/            # lista + dettaglio pagamento (timeline stati, tentativi)
     creditor-entities/   # enti creditori + dettaglio ente
+    analytics/           # confronto attivazioni positive / sendPaymentOutcome
   models/          # interfacce e tipi di dominio (stati, DTO)
 ```
 

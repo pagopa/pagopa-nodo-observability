@@ -679,3 +679,51 @@ test('maintenances answer 503 when the upstream never answered', T, () =>
     assert.equal(r.status, 503);
     assert.equal(r.json.code, 'MAINTENANCE_UNAVAILABLE');
   }));
+
+test('analytics compares positive activations and sendPaymentOutcome requests in one minute-aligned window', T, () =>
+  withServer({}, async h => {
+    const r = await h.get(`/api/analytics/activations-outcomes?${ALL}`);
+    assert.equal(r.status, 200);
+    const { activatePaymentNoticeOk: ok, sendPaymentOutcome: spo } = r.json;
+    assert.ok(ok.total > 0 && spo.total > 0, 'the fixtures exercise both counters');
+    assert.equal(ok.total, ok.activatePaymentNotice + ok.activatePaymentNoticeV2);
+    assert.equal(spo.total, spo.sendPaymentOutcome + spo.sendPaymentOutcomeV2);
+    assert.equal(r.json.difference, spo.total - ok.total);
+    const tokens = r.json.tokens;
+    const categories = ['acceptedOutcome', 'cancelledByMod3Cancel', 'otherCancelled', 'nonTerminal', 'otherTerminal'];
+    assert.equal(tokens.total, ok.total, 'the breakdown covers the same tokens as the positive activations');
+    assert.equal(categories.reduce((sum, key) => sum + tokens[key].total, 0), tokens.total);
+    assert.equal(tokens.acceptedOutcome.total, tokens.acceptedOutcome.sendPaymentOutcome + tokens.acceptedOutcome.sendPaymentOutcomeV2);
+    assert.equal(tokens.cancelledByMod3Cancel.total, tokens.cancelledByMod3Cancel.mod3Cancel + tokens.cancelledByMod3Cancel.mod3CancelV2);
+    for (const [key, list] of [['otherCancelled', 'byCause'], ['nonTerminal', 'byState'], ['otherTerminal', 'byState']]) {
+      assert.equal(tokens[key][list].reduce((sum, item) => sum + item.count, 0), tokens[key].total, key);
+    }
+    assert.ok(tokens.acceptedOutcome.total > 0 && tokens.nonTerminal.total > 0 && tokens.otherCancelled.total > 0,
+      'the fixtures exercise accepted, non-terminal and other cancelled tokens');
+    assert.equal(r.json.coverage.status, 'UNKNOWN');
+    assert.deepEqual(r.json.coverage.reasons, ['NO_INGESTION_WATERMARK']);
+    assert.ok(Date.parse(r.json.coverage.lastObservedEventAt) <= NOW);
+    assert.equal(r.json.live, false);
+    assert.match(r.json.window.from, /:00\.000Z$/);
+    assert.match(r.json.window.to, /:00\.000Z$/);
+
+    const live = await h.get(`/api/analytics/activations-outcomes?${ALL}&live=true`);
+    assert.equal(live.status, 200);
+    assert.equal(live.json.window.to, null);
+    const old = await h.get(`/api/analytics/activations-outcomes?from=${encodeURIComponent(new Date(NOW - 59.95 * DAY).toISOString())}`
+      + `&to=${encodeURIComponent(new Date(NOW - 59.85 * DAY).toISOString())}`);
+    assert.equal(old.status, 200);
+    assert.equal(old.json.tokens.total, 1);
+    assert.deepEqual(old.json.tokens.cancelledByMod3Cancel, { total: 1, mod3Cancel: 1, mod3CancelV2: 0 },
+      'a token activated in the window and later cancelled by the cron is counted');
+    const expired = await h.get(`/api/analytics/activations-outcomes?from=${encodeURIComponent(new Date(NOW - 61 * DAY).toISOString())}`
+      + `&to=${encodeURIComponent(new Date(NOW - 60.5 * DAY).toISOString())}`);
+    assert.equal(expired.json.tokens, null, 'beyond retention the breakdown is unknown, not zero');
+    assert.deepEqual(expired.json.coverage, { status: 'UNAVAILABLE', reasons: ['RETENTION'], lastObservedEventAt: null });
+    assert.equal((await h.get('/api/analytics/activations-outcomes')).status, 200);
+    assert.equal((await h.get('/api/analytics/activations-outcomes?serviceIdentifier=~unknown')).status, 200);
+    for (const unsupported of [`paFiscalCode=${PA1}`, 'attemptState=PAYING', 'pageSize=10']) {
+      assert.equal((await h.get(`/api/analytics/activations-outcomes?${unsupported}`)).status, 400, unsupported);
+    }
+    assert.equal((await h.get('/api/analytics/activations-outcomes', { token: 'DEMO_PA_VIEWER' })).status, 403);
+  }));

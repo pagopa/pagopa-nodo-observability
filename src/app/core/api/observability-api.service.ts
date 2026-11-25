@@ -15,6 +15,7 @@ import {
   Station,
 } from '../../models/domain';
 import { environment } from '../../../environments/environment';
+import { ActivationsOutcomes, isActivationsOutcomes } from '../../models/analytics';
 import { DbCheck, isDbCheck } from '../../models/db-check';
 import { isMaintenances, Maintenances } from '../../models/maintenance';
 import { NodeServicesCheck, toNodeServicesCheck } from '../../models/node-service';
@@ -103,6 +104,18 @@ export class ObservabilityApi {
 
   overview(filters: Filters): Observable<Overview> {
     return this.http.get<Overview>(`${this.base}/api/overview`, { params: this.params(filters) });
+  }
+
+  /** Positive activations vs sendPaymentOutcome requests in one window; only time window and dimension filters. */
+  activationsOutcomes(filters: Filters): Observable<ActivationsOutcomes> {
+    const allowed = ['from', 'to', 'live', 'serviceIdentifier', 'psp', 'canale', 'stazione'];
+    const params = this.params(Object.fromEntries(Object.entries(filters).filter(([key]) => allowed.includes(key))));
+    return this.http.get<unknown>(`${this.base}/api/analytics/activations-outcomes`, { params }).pipe(
+      map(value => {
+        if (!isActivationsOutcomes(value)) throw new Error('Risposta di analytics non valida.');
+        return value;
+      }),
+    );
   }
 
   /** Station maintenances of the next 7 days, cached daily by the backend. */

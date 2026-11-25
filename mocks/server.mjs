@@ -2,7 +2,7 @@ import http from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { ATTEMPT_STATES, LOGICAL_STATES, DAY, fixtures, current, warning, iso, key,
-  safeAttempt, safeRecipient, retainedRecipients, paymentDetail, paymentSummary, selected, aggregate, withinWindow, primitiveRows, primitiveWarnings } from './model.mjs';
+  safeAttempt, safeRecipient, retainedRecipients, paymentDetail, paymentSummary, selected, aggregate, withinWindow, primitiveRows, primitiveWarnings, activationsOutcomes } from './model.mjs';
 import { SCENARIOS } from './scenarios.mjs';
 import { createReDiagnostics } from './re-events.mjs';
 import { createMaintenanceCache, httpMaintenanceFetcher, syntheticMaintenanceFetcher } from './maintenance.mjs';
@@ -609,6 +609,20 @@ export function createMockServer({ now = Date.now, heartbeatMs = 15_000, replayL
         const window = windowFor(q), data = filtered(user, q);
         return json(200, { ...aggregate(data, window, clock(), aggregateRevision, q.live === 'true'),
           primitives: primitiveRows(data, window, clock(), q.live === 'true'), freshness: freshness() });
+      }
+      if (req.method === 'GET' && path === '/api/analytics/activations-outcomes') {
+        const allowedParams = [...DIMENSIONS, 'from', 'to', 'live'];
+        requireValue([...url.searchParams.keys()].every(name => allowedParams.includes(name)), 'Filtro non supportato.');
+        const q = query(url, ['from', 'to', 'live']);
+        requireValue((q.from === undefined) === (q.to === undefined));
+        if (user.pa) fail(403, 'FORBIDDEN', 'Vista non disponibile con visibilità ristretta a un ente creditore.');
+        // Like the backend: `from` truncated to the minute, `to` rounded up.
+        const minute = (value, round) => iso(round(Date.parse(value) / 60_000) * 60_000);
+        const requested = windowFor(q), live = q.live === 'true';
+        const window = { from: minute(requested.from, Math.floor), to: minute(requested.to, Math.ceil) };
+        const current = freshness();
+        return json(200, { window: { from: window.from, to: live ? null : window.to }, live,
+          ...activationsOutcomes(filtered(user, q), window, live, clock()), freshness: current, generatedAt: iso(clock()) });
       }
       if (req.method === 'GET' && path === '/api/overview/primitive-warnings') {
         const q = query(url, ['from', 'to', 'live', 'primitive', 'pageSize', 'cursor']);
