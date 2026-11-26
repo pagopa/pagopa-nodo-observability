@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, LOCALE_ID, OnInit, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { MatTab, MatTabGroup, MatTabLabel } from '@angular/material/tabs';
 import { DecimalPipe, formatNumber } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -7,9 +8,11 @@ import { Subscription } from 'rxjs';
 import { Filters, ObservabilityApi } from '../../core/api/observability-api.service';
 import { TimezoneService } from '../../core/timezone.service';
 import { ActivationsOutcomes, COVERAGE_REASONS } from '../../models/analytics';
-import { formatInstant } from '../../models/domain';
+import { formatInstant, Overview } from '../../models/domain';
 import { readTimeWindow, resolveTimeWindow, TimeWindowSelection } from '../../models/time-window';
 import { TimeWindowComponent } from '../../shared/time-window/time-window.component';
+import { TransitionTrendComponent } from './transition-trend.component';
+import { TransitionDurationsComponent } from './transition-durations.component';
 
 type Dimension = 'serviceIdentifier' | 'psp' | 'canale' | 'stazione';
 
@@ -25,7 +28,7 @@ interface TokenDetail { name: string | null; hasVia: boolean; via: string | null
 
 @Component({
   selector: 'app-analytics',
-  imports: [DecimalPipe, TimeWindowComponent],
+  imports: [DecimalPipe, MatTab, MatTabGroup, MatTabLabel, TimeWindowComponent, TransitionTrendComponent, TransitionDurationsComponent],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,10 +41,16 @@ export class AnalyticsComponent implements OnInit {
   private readonly timezone = inject(TimezoneService);
   private readonly locale = inject(LOCALE_ID);
   private subscription?: Subscription;
+  private trendSubscription?: Subscription;
+  private trendFilters: Filters | null = null;
+  private selectedTab = 0;
 
   readonly data = signal<ActivationsOutcomes | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly trend = signal<Pick<Overview, 'transitions' | 'durations'> | null>(null);
+  readonly trendLoading = signal(false);
+  readonly trendError = signal<string | null>(null);
   readonly timeWindow = signal<TimeWindowSelection>({ range: '1h', from: '', to: '' });
   readonly filters = signal<Record<Dimension, string>>({ serviceIdentifier: '', psp: '', canale: '', stazione: '' });
 
@@ -166,17 +175,56 @@ export class AnalyticsComponent implements OnInit {
     if (!this.catalogLoading() && this.catalogError()) this.loadCatalog();
   }
 
+  selectTab(index: number): void {
+    this.selectedTab = index;
+    if (index === 1 && this.trendFilters && this.trend() === null && !this.trendLoading() && !this.trendError()) {
+      this.loadTrend();
+    }
+  }
+
+  loadTrend(): void {
+    if (!this.trendFilters) {
+      this.load();
+      return;
+    }
+    this.trendSubscription?.unsubscribe();
+    this.trend.set(null);
+    this.trendLoading.set(true);
+    this.trendError.set(null);
+    this.trendSubscription = this.api.overview(this.trendFilters).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: value => {
+        this.trend.set({ transitions: value.transitions, durations: value.durations });
+        this.trendLoading.set(false);
+      },
+      error: (failure: unknown) => {
+        this.trendLoading.set(false);
+        this.trendError.set(this.message(failure));
+      },
+    });
+  }
+
   /** Reloads the current selection; a preset range moves forward to "now". */
   load(): void {
     this.subscription?.unsubscribe();
+    this.trendSubscription?.unsubscribe();
+    this.trendFilters = null;
+    this.trend.set(null);
+    this.trendLoading.set(false);
+    this.trendError.set(null);
     this.data.set(null);
     this.error.set(null);
     const window = resolveTimeWindow(this.timeWindow());
     if (!window.bounds) {
       this.loading.set(false);
       this.error.set(window.error);
+      this.trendError.set(window.error);
       return;
     }
+    this.trendFilters = {
+      ...window.bounds,
+      ...(this.timeWindow().range === 'custom' ? {} : { live: 'true' }),
+    };
+    if (this.selectedTab === 1) this.loadTrend();
     this.loading.set(true);
     const filters: Filters = {
       ...window.bounds,

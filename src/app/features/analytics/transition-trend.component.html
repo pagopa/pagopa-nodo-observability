@@ -1,0 +1,60 @@
+  <section class="section">
+    <div class="sh">
+      <div><h2>Andamento dei passaggi di stato</h2><p class="sub">Passaggi per intervallo, basati su <span class="mono">transitionAt</span>. I passaggi inferiti hanno un’ora stimata e sono tratteggiati.</p></div>
+    </div>
+    <div>
+        @if (transitionTrend().bars.length) {
+          <svg class="chart transition-chart" viewBox="0 0 900 210" role="img"
+            aria-label="Andamento dei passaggi di stato: barre impilate da evento sorgente e inferite"
+            aria-describedby="transition-chart-description">
+            <desc id="transition-chart-description">
+              Conteggi per intervallo nel fuso {{ timezone.zone() }}. Blu: da evento sorgente. Tratteggio: inferito, con ora stimata.
+              @for (bar of transitionTrend().bars; track bar.instant) {
+                {{ bar.title }}: da evento {{ bar.source | number }}, inferito {{ bar.inferred | number }}.
+              }
+            </desc>
+            <defs>
+              <pattern id="transition-inferred-hatch" width="6" height="6"
+                patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect class="hatch-background" width="6" height="6" />
+                <line class="hatch-line" x1="0" y1="0" x2="0" y2="6" />
+              </pattern>
+            </defs>
+            @for (tick of transitionTrend().ticks; track tick.value) {
+              <line class="grid" x1="48" x2="892" [attr.y1]="tick.y" [attr.y2]="tick.y" />
+              <text x="40" [attr.y]="tick.y + 4" text-anchor="end">{{ tick.value | number }}</text>
+            }
+            @for (bar of transitionTrend().bars; track bar.instant) {
+              @if (bar.source) {
+                <rect class="b source-bar" [attr.x]="bar.x" [attr.y]="bar.sourceY"
+                  [attr.width]="bar.width" [attr.height]="bar.sourceHeight">
+                  <title>{{ bar.title }} · Da evento (sorgente): {{ bar.source | number }}</title>
+                </rect>
+              }
+              @if (bar.inferred) {
+                <rect class="b" [attr.x]="bar.x" [attr.y]="bar.inferredY"
+                  [attr.width]="bar.width" [attr.height]="bar.inferredHeight" fill="url(#transition-inferred-hatch)">
+                  <title>{{ bar.title }} · Inferito (ora stimata): {{ bar.inferred | number }}</title>
+                </rect>
+              }
+              @if (bar.label) {
+                <text [attr.x]="bar.labelX" y="202" text-anchor="middle">{{ bar.label }}</text>
+              }
+            }
+          </svg>
+          <div class="legend">
+            <span><i class="source-swatch" aria-hidden="true"></i>Da evento (sorgente)</span>
+            <span><i class="inferred-swatch" aria-hidden="true"></i>Inferito (ora stimata)</span>
+          </div>
+        } @else {
+          <p class="empty-lock">Nessun passaggio di stato registrato nell’intervallo selezionato.</p>
+        }
+        <aside class="note overview-note" aria-label="Come leggere il grafico">
+          <div>
+            <p><strong class="mono">transitionAt</strong>: data e ora attribuite al passaggio di stato, usate per collocarlo nel grafico; non è l’ora di ricezione o elaborazione dell’evento. Le date sono visualizzate nel fuso selezionato.</p>
+            <p><strong>Da evento</strong>: passaggio registrato esplicitamente dal Nodo, con data e ora ricavate da <span class="mono">dataOraEvento</span> dell’evento sorgente.</p>
+            <p><strong>Inferito</strong>: passaggio non osservato direttamente, ricostruito secondo le regole della macchina a stati. Usa la data e ora dell’evento che ne ha permesso la ricostruzione: l’ora è quindi stimata. Nel grafico è tratteggiato ed è escluso dai calcoli di mediana e p95.</p>
+          </div>
+        </aside>
+      </div>
+  </section>

@@ -32,6 +32,7 @@ registerLocaleData(localeIt);
 
 describe('AnalyticsComponent', () => {
   const activationsOutcomes = vi.fn<(filters: Filters) => Observable<ActivationsOutcomes>>();
+  const overview = vi.fn();
   const catalogWithServiceIdentifiers = vi.fn();
   const navigate = vi.fn();
   let params: BehaviorSubject<ParamMap>;
@@ -42,7 +43,7 @@ describe('AnalyticsComponent', () => {
     await TestBed.configureTestingModule({
       imports: [AnalyticsComponent],
       providers: [
-        { provide: ObservabilityApi, useValue: { activationsOutcomes, catalogWithServiceIdentifiers } },
+        { provide: ObservabilityApi, useValue: { activationsOutcomes, catalogWithServiceIdentifiers, overview } },
         { provide: ActivatedRoute, useValue: { queryParamMap: params } },
         { provide: Router, useValue: { navigate } },
         { provide: TimezoneService, useValue: { zone: () => 'UTC' } },
@@ -80,6 +81,137 @@ describe('AnalyticsComponent', () => {
     activationsOutcomes.mockReset();
     navigate.mockReset();
     catalogWithServiceIdentifiers.mockReset().mockReturnValue(of({ serviceIdentifiers: ['NDP001DEV'] }));
+    overview.mockReset().mockReturnValue(of({ transitions: [
+      { bucketStart: '2026-11-24T09:00:00Z', timestampBasis: 'SOURCE_EVENT', count: 10 },
+      { bucketStart: '2026-11-24T09:00:00Z', timestampBasis: 'INFERRED', count: 3 },
+    ], durations: [
+      { entity: 'logical', fromState: 'PAYING', toState: 'PAID', timestampBasis: 'SOURCE_EVENT',
+        samples: 10, averageMs: 41000, medianMs: 41000, p95Ms: 252000 },
+    ] }));
+  });
+
+  it('shows transition trends and durations in Performance with the selected time window', async () => {
+    activationsOutcomes.mockReturnValue(of(result()));
+    const fixture = await create({ window: 'custom', from: '2026-11-24T09:00:00.000Z', to: '2026-11-24T10:00:00.000Z', psp: 'PSP', canale: 'CANALE' });
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).not.toContain('Andamento dei passaggi di stato');
+    const tabs = [...root.querySelectorAll<HTMLElement>('[role="tab"]')];
+    tabs[1].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(root.textContent).toContain('Andamento dei passaggi di stato');
+    expect(root.textContent).toContain('Durata mediana tra passaggi');
+    expect(root.querySelector('#transition-durations')?.textContent).toContain('41 s');
+    expect(root.querySelector('#transition-durations')?.textContent).toContain('4 min 12 s');
+    expect(root.textContent).toContain('Da evento (sorgente)');
+    expect(root.textContent).toContain('Inferito (ora stimata)');
+    expect(root.querySelector('svg[aria-describedby="transition-chart-description"]')).not.toBeNull();
+    expect(overview).toHaveBeenCalledWith({ from: '2026-11-24T09:00:00.000Z', to: '2026-11-24T10:00:00.000Z' });
+    fixture.destroy();
+  });
+
+  it('shows trend errors with a retry, independently of the volumes data', async () => {
+    activationsOutcomes.mockReturnValue(of(result()));
+    overview.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 503 })));
+    const fixture = await create();
+    const root = fixture.nativeElement as HTMLElement;
+    [...root.querySelectorAll<HTMLElement>('[role="tab"]')][1].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(root.querySelector('[role="alert"]')?.textContent).toContain('HTTP 503');
+    root.querySelector<HTMLButtonElement>('[role="alert"] button')?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(root.querySelector('[role="alert"]')).toBeNull();
+    expect(root.textContent).toContain('Andamento dei passaggi di stato');
+    expect(activationsOutcomes).toHaveBeenCalledTimes(1);
+    fixture.destroy();
+  });
+
+  it('refreshes the trend when the selected time window changes', async () => {
+    activationsOutcomes.mockReturnValue(of(result()));
+    const fixture = await create();
+    const root = fixture.nativeElement as HTMLElement;
+    [...root.querySelectorAll<HTMLElement>('[role="tab"]')][1].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    params.next(convertToParamMap({
+      window: 'custom', from: '2026-11-24T08:00:00.000Z', to: '2026-11-24T09:00:00.000Z',
+    }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(overview).toHaveBeenLastCalledWith({ from: '2026-11-24T08:00:00.000Z', to: '2026-11-24T09:00:00.000Z' });
+    fixture.destroy();
+  });
+
+  it('switches between volumes, performance, and the work in progress panel', async () => {
+    activationsOutcomes.mockReturnValue(of(result()));
+    const fixture = await create();
+    const root = fixture.nativeElement as HTMLElement;
+    const tabs = [...root.querySelectorAll<HTMLElement>('[role="tab"]')];
+    expect(tabs.map(tab => tab.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+      'Volumi & Esiti', 'Performance & Latenze', 'Errori & Anomalie',
+    ]);
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+    expect(tokenSection(fixture)).not.toBeNull();
+    for (const index of [1, 2]) {
+      tabs[index].click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(tabs[index].getAttribute('aria-selected')).toBe('true');
+      const panel = root.querySelector(`[role="tabpanel"][id="${tabs[index].getAttribute('aria-controls')}"]`);
+      expect(panel?.textContent).toContain(index === 1 ? 'Andamento dei passaggi di stato' : 'Work in progress');
+      expect(root.querySelector('#analytics-tokens')).toBeNull();
+    }
+    tabs[0].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(tokenSection(fixture)).not.toBeNull();
+    expect(activationsOutcomes).toHaveBeenCalledTimes(1);
+    fixture.destroy();
+  });
+
+  it('supports keyboard navigation and selection of the analytics tabs', async () => {
+    activationsOutcomes.mockReturnValue(of(result()));
+    const fixture = await create();
+    const tabs = [...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="tab"]')];
+    tabs[0].focus();
+    tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', keyCode: 39, bubbles: true }));
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(tabs[1]);
+    tabs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(tabs[1].getAttribute('aria-selected')).toBe('true');
+    const panel = (fixture.nativeElement as HTMLElement).querySelector(`[role="tabpanel"][id="${tabs[1].getAttribute('aria-controls')}"]`);
+    expect(panel?.textContent).toContain('Andamento dei passaggi di stato');
+    fixture.destroy();
+  });
+
+  it('keeps performance usable while volumes are loading', async () => {
+    activationsOutcomes.mockReturnValue(new Subject<ActivationsOutcomes>());
+    const fixture = await create();
+    const root = fixture.nativeElement as HTMLElement;
+    const tabs = [...root.querySelectorAll<HTMLElement>('[role="tab"]')];
+    tabs[1].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const panel = root.querySelector(`[role="tabpanel"][id="${tabs[1].getAttribute('aria-controls')}"]`);
+    expect(panel?.textContent).toContain('Andamento dei passaggi di stato');
+    expect(text(fixture)).not.toContain('Caricamento dei contatori');
+    tabs[0].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(text(fixture)).toContain('Caricamento dei contatori');
+    fixture.destroy();
   });
 
   it('shows a loading state, not zeros, until the counters arrive', async () => {
@@ -285,7 +417,7 @@ describe('AnalyticsComponent', () => {
     expect(Object.keys(filters)).not.toContain('logicalState');
     expect(text(fixture)).toContain('a ora');
     expect((fixture.nativeElement as HTMLElement).querySelector('.window-badge')?.getAttribute('title'))
-      .toContain('a ora (aggiornata alla richiesta)');
+      .toContain('ad ora (aggiornata alla richiesta)');
     fixture.destroy();
   });
 

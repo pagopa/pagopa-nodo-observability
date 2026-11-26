@@ -37,6 +37,12 @@
   </div>
 }
 
+<mat-tab-group class="analytics-tabs" aria-label="Sottosezioni Analytics" animationDuration="0ms" (selectedIndexChange)="selectTab($event)">
+  <mat-tab>
+    <ng-template mat-tab-label>
+      <svg class="i tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      Volumi &amp; Esiti
+    </ng-template>
 @if (loading()) { <p class="muted analytics-status" role="status">Caricamento dei contatori della finestra selezionata…</p> }
 @if (error(); as message) {
   <div class="note err analytics-status" role="alert">
@@ -47,7 +53,6 @@
     </div>
   </div>
 }
-
 @if (data(); as value) {
   @let windowDescription = 'Finestra dal ' + format(value.window.from) + (value.live ? ' ad ora (aggiornata alla richiesta)' : ' al ' + format(value.window.to)) + ' · calcolata alle ' + format(value.generatedAt);
   <section class="section" aria-labelledby="analytics-counters">
@@ -223,3 +228,30 @@
       </section>
   </section>
 }
+  </mat-tab>
+  <mat-tab>
+    <ng-template mat-tab-label>
+      <svg class="i tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      Performance &amp; Latenze
+    </ng-template>
+    @if (trendLoading()) { <p class="muted analytics-status" role="status">Caricamento dei passaggi di stato…</p> }
+    @if (trendError(); as message) {
+      <div class="note err analytics-status" role="alert">
+        <div>{{ message }}<div class="chips retry-actions"><button class="btn o sm" type="button" (click)="loadTrend()">Riprova</button></div></div>
+      </div>
+    }
+    @if (trend(); as performance) {
+      <div class="cols-3-2 transition-layout">
+        <div><app-transition-trend [transitions]="performance.transitions" /></div>
+        <div><app-transition-durations [durations]="performance.durations" /></div>
+      </div>
+    }
+  </mat-tab>
+  <mat-tab>
+    <ng-template mat-tab-label>
+      <svg class="i tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      Errori &amp; Anomalie
+    </ng-template>
+    <section class="work-in-progress"><h2>Work in progress</h2></section>
+  </mat-tab>
+</mat-tab-group>

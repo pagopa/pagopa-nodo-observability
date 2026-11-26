@@ -6,6 +6,26 @@
   margin-top: var(--space-2);
 }
 
+.analytics-tabs {
+  margin-top: var(--space-6);
+}
+
+.tab-icon {
+  margin-right: var(--space-2);
+}
+
+.work-in-progress {
+  margin-top: var(--space-6);
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--space-3);
+  background: var(--surface);
+
+  h2 {
+    margin: 0;
+  }
+}
+
 .analytics-toolbar {
   flex-wrap: wrap;
 

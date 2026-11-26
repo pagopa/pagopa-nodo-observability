@@ -531,10 +531,10 @@ describe('OverviewComponent rolling window', () => {
   });
 });
 
-describe('OverviewComponent transition trend', () => {
+describe('OverviewComponent transition durations', () => {
   const zone = signal('Europe/Rome');
   const stream = new Subject<MessageEvent<string>>();
-  const createFixture = async (data: Overview, entity: 'logical' | 'attempt' = 'logical') => {
+  const createFixture = async (data: Overview) => {
     zone.set('Europe/Rome');
     await TestBed.configureTestingModule({
       imports: [OverviewComponent],
@@ -556,77 +556,21 @@ describe('OverviewComponent transition trend', () => {
     await fixture.whenStable();
     stream.next(new MessageEvent('message', { data: JSON.stringify({ type: 'ready' }) }));
     await fixture.whenStable();
-    if (entity === 'attempt') await selectDurationTab(fixture, 'Tentativi');
     return fixture;
-  };
-  const section = (fixture: ComponentFixture<OverviewComponent>): HTMLElement => {
-    const element = [...(fixture.nativeElement as HTMLElement).querySelectorAll('section')]
-      .find(item => item.querySelector('h2')?.textContent === 'Andamento dei passaggi di stato');
-    if (!element) throw new Error('Transition trend section not found');
-    return element;
   };
   const transition = (bucketStart: string, count: number, timestampBasis = 'SOURCE_EVENT') =>
     ({ bucketStart, count, timestampBasis, entity: 'attempt', state: 'PAYING' });
-  const durationTab = (fixture: ComponentFixture<OverviewComponent>, label: string): HTMLElement => {
-    const tab = [...section(fixture).querySelectorAll<HTMLElement>('[role="tab"]')]
-      .find(item => item.textContent?.trim() === label);
-    if (!tab) throw new Error(`Duration tab ${label} not found`);
-    return tab;
-  };
-  const selectDurationTab = async (fixture: ComponentFixture<OverviewComponent>, label: string) => {
-    durationTab(fixture, label).click();
-    await fixture.whenStable();
-  };
-
-  it.each([0, 1])('explains transition timestamps and provenance with %i chart buckets', async count => {
+  it('does not render the transition trend or duration section in Overview', async () => {
     const data = snapshot(1, 10);
-    data.transitions = count ? [transition('2026-10-16T09:00:00Z', 10)] : [];
+    data.transitions = [transition('2026-10-16T09:00:00Z', 10)];
     const fixture = await createFixture(data);
-    const note = section(fixture).querySelector('aside[aria-label="Come leggere il grafico"]');
-
-    expect(note).not.toBeNull();
-    expect(note?.textContent).toContain('transitionAt');
-    expect(note?.textContent).toContain('non è l’ora di ricezione o elaborazione');
-    expect(note?.textContent).toContain('Da evento');
-    expect(note?.textContent).toContain('dataOraEvento');
-    expect(note?.textContent).toContain('Inferito');
-    expect(note?.textContent).toContain('ricostruito secondo le regole della macchina a stati');
-    expect(note?.textContent).toContain('l’ora è quindi stimata');
+    const page = fixture.nativeElement as HTMLElement;
+    expect(page.textContent).not.toContain('Andamento dei passaggi di stato');
+    expect(page.textContent).not.toContain('Durata mediana tra passaggi');
     fixture.destroy();
   });
 
-  it('renders chronologically ordered stacked bars with source and inferred totals and a legend', async () => {
-    const data = snapshot(1, 100);
-    data.transitions = [
-      transition('2026-10-16T09:00:00Z', 20, 'INFERRED'),
-      transition('2026-10-16T08:00:00Z', 10),
-      transition('2026-10-16T09:00:00Z', 30),
-      { ...transition('2026-10-16T09:00:00Z', 5), entity: 'logical', state: 'PAID' },
-      transition('2026-10-16T09:00:00Z', 999, 'ANOMALY'),
-    ];
-    const originalRows = structuredClone(data.transitions);
-    const fixture = await createFixture(data);
-    const element = section(fixture);
-    const chart = element.querySelector('svg[role="img"]');
-    expect(chart).not.toBeNull();
-    expect([...chart!.querySelectorAll('rect title')].map(title => title.textContent)).toEqual([
-      expect.stringContaining('Da evento (sorgente): 10'),
-      expect.stringContaining('Da evento (sorgente): 35'),
-      expect.stringContaining('Inferito (ora stimata): 20'),
-    ]);
-    const bars = [...chart!.querySelectorAll('rect')].filter(rect => rect.querySelector('title'));
-    expect(Number(bars[1].getAttribute('y'))).toBeGreaterThan(Number(bars[2].getAttribute('y')));
-    expect(Number(bars[2].getAttribute('y')) + Number(bars[2].getAttribute('height')))
-      .toBeCloseTo(Number(bars[1].getAttribute('y')));
-    expect(bars[2].getAttribute('fill')).toMatch(/^url\(#.+\)$/);
-    expect(element.textContent).toContain('Da evento (sorgente)');
-    expect(element.textContent).toContain('Inferito (ora stimata)');
-    expect(element.querySelectorAll('table')).toHaveLength(0);
-    expect(data.transitions).toEqual(originalRows);
-    fixture.destroy();
-  });
-
-  it('updates bars and durations from aggregate SSE deltas', async () => {
+  it('updates durations from aggregate SSE deltas', async () => {
     const data = snapshot(1, 10);
     data.transitions = [transition('2026-10-16T09:00:00Z', 10)];
     const fixture = await createFixture(data);
@@ -643,304 +587,11 @@ describe('OverviewComponent transition trend', () => {
       },
     }) }));
     await fixture.whenStable();
-    expect(section(fixture).querySelector('rect title')?.textContent).toContain('Da evento (sorgente): 17');
-    await selectDurationTab(fixture, 'Tentativi');
-    expect(section(fixture).querySelector('table')?.textContent).toContain('41 s');
-    expect(section(fixture).querySelector('table')?.textContent).toContain('4 min 12 s');
+    expect(fixture.componentInstance.overview()?.durations[0].medianMs).toBe(41000);
+    expect(fixture.componentInstance.overview()?.durations[0].p95Ms).toBe(252000);
     fixture.destroy();
   });
 
-  it('reformats the time axis when the selected timezone changes', async () => {
-    const data = snapshot(1, 10);
-    data.transitions = [transition('2026-10-16T09:00:00Z', 10)];
-    const fixture = await createFixture(data);
-    expect(section(fixture).querySelector('svg')?.textContent).toContain('11:00');
-    zone.set('UTC');
-    await fixture.whenStable();
-    expect(section(fixture).querySelector('svg')?.textContent).toContain('09:00');
-    expect(section(fixture).querySelector('svg')?.textContent).not.toContain('11:00');
-    fixture.destroy();
-  });
-
-  it('labels daily buckets with dates instead of repeating midnight', async () => {
-    const data = snapshot(1, 10);
-    data.transitions = [
-      transition('2026-10-15T00:00:00Z', 10),
-      transition('2026-10-16T00:00:00Z', 20),
-    ];
-    const fixture = await createFixture(data);
-    const labels = [...section(fixture).querySelectorAll('svg text')].map(text => text.textContent);
-    expect(labels).toContain('15/10');
-    expect(labels).toContain('16/10');
-    fixture.destroy();
-  });
-
-  it('distinguishes sampled hourly labels that fall at the same time on different days', async () => {
-    const data = snapshot(1, 10);
-    data.transitions = Array.from({ length: 192 }, (_, index) =>
-      transition(new Date(Date.parse('2026-10-09T09:00:00Z') + index * 3_600_000).toISOString(), 10));
-    const fixture = await createFixture(data);
-    const labels = fixture.componentInstance.transitionTrend().bars.map(bar => bar.label).filter(Boolean);
-
-    expect(labels).toHaveLength(8);
-    expect(new Set(labels).size).toBe(labels.length);
-    expect(labels[0]).toContain('09/10');
-    expect(labels[1]).toContain('10/10');
-    expect(labels.every(label => label.includes('11:00'))).toBe(true);
-    fixture.destroy();
-  });
-
-  it('keeps dates on mixed-resolution series rather than falling back to time-only labels', async () => {
-    const data = snapshot(1, 10);
-    data.transitions = [
-      transition('2026-10-14T00:00:00Z', 10),
-      transition('2026-10-15T00:00:00Z', 20),
-      transition('2026-10-15T01:00:00Z', 30),
-      transition('2026-10-16T00:00:00Z', 40),
-    ];
-    const fixture = await createFixture(data);
-    const labels = fixture.componentInstance.transitionTrend().bars.map(bar => bar.label).filter(Boolean);
-
-    expect(new Set(labels).size).toBe(labels.length);
-    expect(labels[0]).toContain('14/10');
-    expect(labels.at(-1)).toContain('16/10');
-    fixture.destroy();
-  });
-
-  it('shows seconds for subminute buckets instead of repeating the same minute', async () => {
-    const data = snapshot(1, 10);
-    data.transitions = [
-      transition('2026-10-16T09:00:10Z', 10),
-      transition('2026-10-16T09:00:20Z', 20),
-      transition('2026-10-16T09:00:30Z', 30),
-    ];
-    const fixture = await createFixture(data);
-    const labels = fixture.componentInstance.transitionTrend().bars.map(bar => bar.label);
-
-    expect(labels).toEqual(['11:00:10', '11:00:20', '11:00:30']);
-    fixture.destroy();
-  });
-
-  it('distinguishes the repeated local hour during the daylight saving fallback', async () => {
-    const data = snapshot(1, 10);
-    data.transitions = [
-      transition('2026-10-25T00:00:00Z', 10),
-      transition('2026-10-25T01:00:00Z', 20),
-    ];
-    const fixture = await createFixture(data);
-    const labels = fixture.componentInstance.transitionTrend().bars.map(bar => bar.label);
-
-    expect(new Set(labels).size).toBe(2);
-    expect(labels[0]).toContain('02:00');
-    expect(labels[0]).toContain('GMT+2');
-    expect(labels[1]).toContain('GMT+1');
-    fixture.destroy();
-  });
-
-  it('keeps zero-count charts finite and preserves the empty state', async () => {
-    const data = snapshot(1, 0);
-    data.transitions = [transition('2026-10-16T09:00:00Z', 0)];
-    const fixture = await createFixture(data);
-    expect(section(fixture).querySelector('svg')).not.toBeNull();
-    expect(section(fixture).innerHTML).not.toMatch(/NaN|Infinity/);
-    fixture.componentInstance.overview.set({ ...data, transitions: [] });
-    await fixture.whenStable();
-    expect(section(fixture).querySelector('svg')).toBeNull();
-    expect(section(fixture).textContent).toContain('Nessun passaggio di stato registrato');
-    fixture.destroy();
-  });
-
-  it('shows only source-event durations with original states and readable units in three columns', async () => {
-    const data = snapshot(1, 10);
-    data.durations = [
-      { entity: 'attempt', fromState: 'PAYING', toState: 'PAYMENT_RESERVED', timestampBasis: 'SOURCE_EVENT',
-        samples: 10, averageMs: 41000, medianMs: 41000, p95Ms: 252000 },
-      { entity: 'attempt', fromState: 'PAYMENT_RESERVED', toState: 'PAYMENT_SENT', timestampBasis: 'SOURCE_EVENT',
-        samples: 10, averageMs: 400, medianMs: 400, p95Ms: 1100 },
-      { entity: 'attempt', fromState: 'PAYMENT_SENT', toState: 'PAYMENT_ACCEPTED', timestampBasis: 'INFERRED',
-        samples: 10, averageMs: 100, medianMs: 100, p95Ms: 200 },
-    ];
-    const fixture = await createFixture(data, 'attempt');
-    const table = section(fixture).querySelector('table');
-    expect([...table!.querySelectorAll('th')].map(th => th.textContent?.trim())).toEqual(['Passaggio', 'Mediana', 'p95']);
-    expect([...table!.querySelectorAll('tbody tr')].map(row =>
-      [...row.querySelectorAll('td')].map(td => (td.querySelector('.duration-code') ?? td).textContent?.trim()))).toEqual([
-        ['PAYING → PAYMENT_RESERVED', '41 s', '4 min 12 s'],
-        ['PAYMENT_RESERVED → PAYMENT_SENT', '0,4 s', '1,1 s'],
-      ]);
-    fixture.componentInstance.overview.set({ ...data, durations: data.durations.filter(row => row.timestampBasis === 'INFERRED') });
-    await fixture.whenStable();
-    expect(section(fixture).querySelector('table')).toBeNull();
-    expect(section(fixture).textContent).toContain('Nessuna durata calcolabile');
-    fixture.destroy();
-  });
-
-  const durationRows = (): Overview['durations'] =>
-    ATTEMPT_STATES.slice(0, 12).map((state, index) => ({
-      entity: 'attempt', fromState: 'PAYING', toState: state, timestampBasis: 'SOURCE_EVENT',
-      samples: 10, averageMs: 100, medianMs: 100, p95Ms: index * 1000,
-    }));
-  const durationToggle = (fixture: ComponentFixture<OverviewComponent>) =>
-    [...section(fixture).querySelectorAll('button')]
-      .find(button => button.textContent?.trim() === 'Mostra tutto'
-        || button.textContent?.trim() === 'Mostra solo i primi 10');
-  const durationStates = (fixture: ComponentFixture<OverviewComponent>) =>
-    [...section(fixture).querySelectorAll('tbody tr')].map(row => row.querySelector('.duration-code')?.textContent?.trim());
-
-  it('shows the ten highest p95 durations and expands and collapses all rows without mutating the snapshot', async () => {
-    const data = snapshot(1, 10);
-    data.durations = durationRows();
-    const originalRows = structuredClone(data.durations);
-    const orderedStates = [...originalRows].reverse().map(row => `${row.fromState} → ${row.toState}`);
-    const fixture = await createFixture(data, 'attempt');
-
-    expect(durationStates(fixture)).toEqual(orderedStates.slice(0, 10));
-    expect(durationToggle(fixture)?.textContent?.trim()).toBe('Mostra tutto');
-    expect(durationToggle(fixture)?.getAttribute('aria-expanded')).toBe('false');
-    expect(durationToggle(fixture)?.getAttribute('aria-controls')).toBe('transition-durations');
-
-    durationToggle(fixture)?.click();
-    await fixture.whenStable();
-    expect(durationStates(fixture)).toEqual(orderedStates);
-    expect(durationToggle(fixture)?.textContent?.trim()).toBe('Mostra solo i primi 10');
-    expect(durationToggle(fixture)?.getAttribute('aria-expanded')).toBe('true');
-
-    durationToggle(fixture)?.click();
-    await fixture.whenStable();
-    expect(durationStates(fixture)).toEqual(orderedStates.slice(0, 10));
-    expect(data.durations).toEqual(originalRows);
-    fixture.destroy();
-  });
-
-  it.each([0, 10])('hides the duration expansion button with %i source rows, excluding inferred durations', async count => {
-    const data = snapshot(1, 10);
-    data.durations = [
-      ...durationRows().slice(0, count),
-      { ...durationRows()[11], timestampBasis: 'INFERRED', p95Ms: 999999 },
-    ];
-    const fixture = await createFixture(data, 'attempt');
-    expect(durationStates(fixture)).toHaveLength(count);
-    expect(durationToggle(fixture)).toBeUndefined();
-    fixture.destroy();
-  });
-
-  it('reorders durations on SSE updates while keeping the expanded state', async () => {
-    const data = snapshot(1, 10);
-    data.durations = durationRows();
-    const fixture = await createFixture(data, 'attempt');
-    const updatedRows = data.durations.map((row, index) => index === 0 ? { ...row, p95Ms: 999999 } : row);
-    const update = (revision: number, rows: Overview['durations']) => {
-      const delta = aggregateDelta(revision, 0);
-      stream.next(new MessageEvent('message', { data: JSON.stringify({
-        ...delta, changes: { ...delta.changes, durationSnapshot: rows },
-      }) }));
-    };
-    update(2, updatedRows);
-    await fixture.whenStable();
-    expect(durationStates(fixture)).toHaveLength(10);
-    expect(durationStates(fixture)[0]).toBe(`PAYING → ${updatedRows[0].toState}`);
-
-    durationToggle(fixture)?.click();
-    await fixture.whenStable();
-    update(3, data.durations);
-    await fixture.whenStable();
-    expect(durationStates(fixture)).toHaveLength(12);
-    expect(durationStates(fixture)[0]).toBe(`PAYING → ${data.durations[11].toState}`);
-    expect(durationToggle(fixture)?.getAttribute('aria-expanded')).toBe('true');
-    fixture.destroy();
-  });
-
-  it('defaults to logical payments and separates identically named transitions without changing the chart', async () => {
-    const data = snapshot(1, 10);
-    data.transitions = [transition('2026-10-16T09:00:00Z', 10)];
-    data.durations = [
-      { ...durationRows()[0], entity: 'logical', toState: 'PAID', medianMs: 1000, p95Ms: 2000 },
-      { ...durationRows()[0], entity: 'attempt', toState: 'PAID', medianMs: 3000, p95Ms: 4000 },
-    ];
-    const fixture = await createFixture(data);
-    const chart = section(fixture).querySelector('svg')?.outerHTML;
-    expect(durationTab(fixture, 'Pagamenti').getAttribute('aria-selected')).toBe('true');
-    expect(durationTab(fixture, 'Tentativi').getAttribute('aria-selected')).toBe('false');
-    expect(durationStates(fixture)).toEqual(['PAYING → PAID']);
-    expect(section(fixture).querySelector('table')?.textContent).toContain('1 s');
-    expect(section(fixture).querySelector('table')?.textContent).not.toContain('3 s');
-
-    await selectDurationTab(fixture, 'Tentativi');
-    expect(durationTab(fixture, 'Tentativi').getAttribute('aria-selected')).toBe('true');
-    expect(durationTab(fixture, 'Pagamenti').getAttribute('aria-selected')).toBe('false');
-    expect(durationStates(fixture)).toEqual(['PAYING → PAID']);
-    expect(section(fixture).querySelector('table')?.textContent).toContain('3 s');
-    expect(section(fixture).querySelector('table')?.textContent).not.toContain('1 s');
-    expect(section(fixture).querySelector('svg')?.outerHTML).toBe(chart);
-    const panel = section(fixture).querySelector('[role="tabpanel"]');
-    expect(durationTab(fixture, 'Tentativi').getAttribute('aria-controls')).toBe(panel?.id);
-    expect(panel?.getAttribute('aria-labelledby')).toBe(durationTab(fixture, 'Tentativi').id);
-    fixture.destroy();
-  });
-
-  it('limits the selected entity independently and resets expansion on each tab switch', async () => {
-    const data = snapshot(1, 10);
-    data.durations = [
-      ...durationRows(),
-      { ...durationRows()[0], entity: 'logical', toState: 'PAID' },
-    ];
-    const fixture = await createFixture(data);
-    expect(durationStates(fixture)).toEqual(['PAYING → PAID']);
-    expect(durationToggle(fixture)).toBeUndefined();
-
-    await selectDurationTab(fixture, 'Tentativi');
-    expect(durationStates(fixture)).toHaveLength(10);
-    expect(durationToggle(fixture)?.getAttribute('aria-expanded')).toBe('false');
-    durationToggle(fixture)?.click();
-    await fixture.whenStable();
-    expect(durationStates(fixture)).toHaveLength(12);
-
-    await selectDurationTab(fixture, 'Pagamenti');
-    expect(durationStates(fixture)).toHaveLength(1);
-    expect(durationToggle(fixture)).toBeUndefined();
-    await selectDurationTab(fixture, 'Tentativi');
-    expect(durationStates(fixture)).toHaveLength(10);
-    expect(durationToggle(fixture)?.getAttribute('aria-expanded')).toBe('false');
-    fixture.destroy();
-  });
-
-  it('shows an entity-specific empty state while the other tab still has durations', async () => {
-    const data = snapshot(1, 10);
-    data.durations = durationRows();
-    const fixture = await createFixture(data);
-    expect(section(fixture).querySelector('table')).toBeNull();
-    expect(section(fixture).textContent).toContain('Nessuna durata calcolabile per i pagamenti logici');
-    await selectDurationTab(fixture, 'Tentativi');
-    expect(durationStates(fixture)).toHaveLength(10);
-    fixture.componentInstance.overview.set({ ...data, durations: [] });
-    await fixture.whenStable();
-    expect(section(fixture).textContent).toContain('Nessuna durata calcolabile per i tentativi');
-    expect(durationToggle(fixture)).toBeUndefined();
-    fixture.destroy();
-  });
-
-  it('supports keyboard focus between the duration tabs', async () => {
-    const fixture = await createFixture(snapshot(1, 0));
-    const logical = durationTab(fixture, 'Pagamenti');
-    const attempt = durationTab(fixture, 'Tentativi');
-    logical.focus();
-    logical.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', keyCode: 39, bubbles: true }));
-    await fixture.whenStable();
-    expect(document.activeElement).toBe(attempt);
-    attempt.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
-    await fixture.whenStable();
-    expect(attempt.getAttribute('aria-selected')).toBe('true');
-    fixture.destroy();
-  });
-
-  it.each([
-    [0, '0 s'], [1, '0,001 s'], [40, '0,04 s'], [60000, '1 min'],
-    [59999, '1 min'], [363000, '6 min 3 s'],
-  ])('formats %i milliseconds as %s without losing subsecond durations', async (milliseconds, expected) => {
-    const fixture = await createFixture(snapshot(1, 0));
-    expect(fixture.componentInstance.formatDuration(milliseconds)).toBe(expected);
-    fixture.destroy();
-  });
 });
 
 describe('OverviewComponent unresolved matrix', () => {

@@ -1,0 +1,50 @@
+  <section class="section">
+    <div>
+        <h3>Durata mediana tra passaggi</h3>
+        <p class="sub duration-description">Solo passaggi da evento sorgente. Esclusi inferiti e anomalie.</p>
+        <nav mat-tab-nav-bar class="duration-tabs" [tabPanel]="durationPanel"
+          [mat-stretch-tabs]="false" aria-label="Entità delle durate">
+          <button mat-tab-link type="button" [active]="durationEntity() === 'logical'"
+            (click)="durationEntity.set('logical')">Pagamenti</button>
+          <button mat-tab-link type="button" [active]="durationEntity() === 'attempt'"
+            (click)="durationEntity.set('attempt')">Tentativi</button>
+          <button mat-tab-link type="button" [active]="durationEntity() === 'recipient'"
+            (click)="durationEntity.set('recipient')">Destinatari ricevuta</button>
+        </nav>
+        <mat-tab-nav-panel #durationPanel class="duration-panel">
+          @if (sourceDurations().length) {
+            <div class="scroll">
+              <table class="tbl" id="transition-durations">
+                <thead><tr><th scope="col">Passaggio</th><th scope="col" class="num">Mediana</th><th scope="col" class="num">p95</th></tr></thead>
+                <tbody>
+                  @for (duration of visibleDurations(); track duration.entity + duration.fromState + duration.toState) {
+                    <tr>
+                      <td class="mono duration-transition"
+                        [attr.aria-label]="(duration.entity === 'logical' ? 'Pagamento' : duration.entity === 'recipient' ? 'Destinatario ricevuta' : 'Tentativo') + ': ' + duration.fromState + ' → ' + duration.toState">
+                        <span class="duration-code">{{ duration.fromState }} → {{ duration.toState }}</span>
+                        <details><summary>Significato del passaggio · {{ duration.entity === 'logical' ? 'Pagamento' : duration.entity === 'recipient' ? 'Destinatario ricevuta' : 'Tentativo' }}</summary>
+                          <app-state-badge [presentation]="presentation(duration.entity, duration.fromState)" /> →
+                          <app-state-badge [presentation]="presentation(duration.entity, duration.toState)" />
+                        </details>
+                      </td>
+                      <td class="num">{{ formatDuration(duration.medianMs) }}</td>
+                      <td class="num">{{ formatDuration(duration.p95Ms) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            @if (sourceDurations().length > 10) {
+              <button class="linkbtn duration-toggle" type="button"
+                aria-controls="transition-durations" [attr.aria-expanded]="showAllDurations()"
+                (click)="showAllDurations.set(!showAllDurations())">
+                {{ showAllDurations() ? 'Mostra solo i primi 10' : 'Mostra tutto' }}
+              </button>
+            }
+          } @else {
+            <p class="empty-lock">Nessuna durata calcolabile per {{ durationEntity() === 'logical' ? 'i pagamenti logici' : durationEntity() === 'recipient' ? 'i destinatari ricevuta' : 'i tentativi' }} nella finestra. I tempi anomali o negativi sono esclusi.</p>
+          }
+        </mat-tab-nav-panel>
+    </div>
+  </section>
+

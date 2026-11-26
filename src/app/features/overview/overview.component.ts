@@ -3,7 +3,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { DecimalPipe } from '@angular/common';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { MatTabLink, MatTabNav, MatTabNavPanel } from '@angular/material/tabs';
 import { Filters, ObservabilityApi, StreamHttpError } from '../../core/api/observability-api.service';
 import { SessionService } from '../../core/auth/session.service';
 import { applyAggregateRows } from '../../core/realtime/aggregate-rows';
@@ -59,7 +58,7 @@ interface AggregateEvent {
 
 @Component({
   selector: 'app-overview',
-  imports: [DecimalPipe, RouterLink, TimeWindowComponent, MatTabNav, MatTabLink, MatTabNavPanel, StateBadgeComponent, PieChartComponent, PrimitiveWarningsComponent, NodeServicesComponent, InfoTipComponent],
+  imports: [DecimalPipe, RouterLink, TimeWindowComponent, StateBadgeComponent, PieChartComponent, PrimitiveWarningsComponent, NodeServicesComponent, InfoTipComponent],
   templateUrl: './overview.component.html',
   styleUrl: './overview.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -231,68 +230,6 @@ export class OverviewComponent implements OnInit {
   });
   readonly visibleAttemptStates = computed(() =>
     this.showAllAttemptStates() ? this.orderedAttemptStates() : this.orderedAttemptStates().slice(0, 10));
-  readonly transitionTrend = computed(() => {
-    const buckets = new Map<number, { source: number; inferred: number }>();
-    for (const row of this.overview()?.transitions ?? []) {
-      if (row.timestampBasis !== 'SOURCE_EVENT' && row.timestampBasis !== 'INFERRED') continue;
-      const instant = Date.parse(row.bucketStart);
-      const bucket = buckets.get(instant) ?? { source: 0, inferred: 0 };
-      if (row.timestampBasis === 'SOURCE_EVENT') bucket.source += row.count;
-      else bucket.inferred += row.count;
-      buckets.set(instant, bucket);
-    }
-    const rows = [...buckets].sort(([a], [b]) => a - b);
-    const peak = Math.max(1, ...rows.map(([, row]) => row.source + row.inferred));
-    const magnitude = 10 ** Math.floor(Math.log10(peak));
-    const maximum = Math.ceil(peak / magnitude) * magnitude;
-    const slotWidth = 844 / Math.max(1, rows.length);
-    const daily = rows.length > 1 && rows.every(([instant], index) =>
-      index === 0 || instant - rows[index - 1][0] >= 86_400_000);
-    const timeZone = this.timezone.zone();
-    const dayFormat = new Intl.DateTimeFormat('it-IT', {
-      timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
-    });
-    const spansDays = new Set(rows.map(([instant]) => dayFormat.format(instant))).size > 1;
-    const axisOptions: Intl.DateTimeFormatOptions = {
-      timeZone,
-      ...(daily || spansDays ? { day: '2-digit', month: '2-digit' } : {}),
-      ...(!daily ? { hour: '2-digit', minute: '2-digit' } : {}),
-      ...(!daily && rows.some(([instant]) => instant % 60_000 !== 0) ? { second: '2-digit' } : {}),
-    };
-    let axisFormat = new Intl.DateTimeFormat('it-IT', axisOptions);
-    const labels = rows.map(([instant]) => axisFormat.format(instant));
-    if (new Set(labels).size < labels.length) {
-      axisFormat = new Intl.DateTimeFormat('it-IT', { ...axisOptions, timeZoneName: 'shortOffset' });
-    }
-    const labelEvery = Math.max(1, Math.ceil(rows.length / 8));
-    return {
-      ticks: [0, 0.5, 1].map(fraction => ({ value: maximum * fraction, y: 184 - 174 * fraction })),
-      bars: rows.map(([instant, row], index) => ({
-        instant,
-        ...row,
-        x: 48 + slotWidth * (index + 0.14),
-        width: slotWidth * 0.72,
-        sourceHeight: row.source / maximum * 174,
-        inferredHeight: row.inferred / maximum * 174,
-        sourceY: 184 - row.source / maximum * 174,
-        inferredY: 184 - (row.source + row.inferred) / maximum * 174,
-        labelX: 48 + slotWidth * (index + 0.5),
-        label: index % labelEvery === 0 ? axisFormat.format(instant) : '',
-        title: formatInstant(new Date(instant).toISOString(), timeZone),
-      })),
-    };
-  });
-  readonly durationEntity = signal<'logical' | 'attempt' | 'recipient'>('logical');
-  readonly sourceDurations = computed(() =>
-    (this.overview()?.durations ?? []).filter(row =>
-      row.timestampBasis === 'SOURCE_EVENT' && row.entity === this.durationEntity())
-      .sort((a, b) => b.p95Ms - a.p95Ms));
-  readonly showAllDurations = linkedSignal({
-    source: this.durationEntity,
-    computation: () => false,
-  });
-  readonly visibleDurations = computed(() =>
-    this.showAllDurations() ? this.sourceDurations() : this.sourceDurations().slice(0, 10));
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly catalogLoading = signal(true);
@@ -354,18 +291,6 @@ export class OverviewComponent implements OnInit {
 
   private sumCounts(rows: readonly { count: number }[] | undefined): number {
     return (rows ?? []).reduce((sum, row) => sum + row.count, 0);
-  }
-
-  formatDuration(milliseconds: number): string {
-    if (milliseconds < 1000) {
-      return `${new Intl.NumberFormat('it-IT', { maximumFractionDigits: 3 }).format(milliseconds / 1000)} s`;
-    }
-    const seconds = Math.round(milliseconds / 100) / 10;
-    const number = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 1 });
-    if (seconds < 60) return `${number.format(seconds)} s`;
-    const minutes = Math.floor(seconds / 60);
-    const remainder = Math.round((seconds - minutes * 60) * 10) / 10;
-    return `${number.format(minutes)} min${remainder ? ` ${number.format(remainder)} s` : ''}`;
   }
 
   ngOnInit(): void {
